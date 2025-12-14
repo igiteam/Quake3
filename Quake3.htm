@@ -169,10 +169,16 @@
           window.addEventListener("keydown", function (event) {
             var KEY_CTRL = event.ctrlKey || event.metaKey
             var KEY_P = event.code === "KeyP"
+            var KEY_F = event.code === "KeyF"
 
             if (KEY_CTRL && KEY_P) {
               event.preventDefault()
               downloadProfileFileQuake3()
+            }
+
+            if (KEY_CTRL && KEY_F) {
+              event.preventDefault()
+              requestFullscreenQuake3()
             }
           })
         }
