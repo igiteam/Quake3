@@ -34,6 +34,7 @@ embedQuake3({
 | Action                | macOS Shortcut | Windows Shortcut | Safari Shortcut |
 | :-------------------- | :------------: | :--------------: | :-------------: |
 | Download q3config.cfg |  Command + P   |     Ctrl + P     |    Ctrl + P     |
+| Fullscreen mode       |  Command + F   |     Ctrl + F     |    Ctrl + F     |
 
 ## Main differences with the original project:
 
