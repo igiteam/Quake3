@@ -114,7 +114,7 @@ Write-Host "==========================================" -ForegroundColor Gray
 `;
 
 // Main function to show Windows porting tool
-function windowsJS(title, cover_url, splash_url) {
+function windowsJS(title, icon_url, splash_url) {
   console.log("🪟 Windows Porting Tool activated");
   const gamesCount = 0;
 
@@ -186,7 +186,7 @@ function windowsJS(title, cover_url, splash_url) {
 
   // Windows icon
   const windowsIcon = document.createElement("img");
-  windowsIcon.src = "https://cdn.sdappnet.cloud/rtx/images/windows-icon.png";
+  windowsIcon.src = cover_url;
   windowsIcon.alt = "Windows";
   windowsIcon.style.cssText = `
     width: 16px;
@@ -301,7 +301,7 @@ function windowsJS(title, cover_url, splash_url) {
   `;
 
   const windowsLogo = document.createElement("img");
-  windowsLogo.src = "https://cdn.sdappnet.cloud/rtx/images/windows-icon.png";
+  windowsLogo.src = icon_url;
   windowsLogo.alt = "Windows";
   windowsLogo.style.cssText = `
     width: 60px;
@@ -310,7 +310,7 @@ function windowsJS(title, cover_url, splash_url) {
   `;
 
   const toolTitle = document.createElement("h2");
-  toolTitle.textContent = "Electron to Windows";
+  toolTitle.textContent = `${title} Electron to Windows`;
   toolTitle.style.cssText = `
     color: #0078d7;
     margin: 0 0 5px 0;
@@ -330,6 +330,25 @@ function windowsJS(title, cover_url, splash_url) {
   windowsHeader.appendChild(toolTitle);
   windowsHeader.appendChild(toolSubtitle);
   leftPanel.appendChild(windowsHeader);
+
+  // App header with icon
+  const appHeader = document.createElement("div");
+  appHeader.style.cssText = `
+    text-align: center;
+    margin-bottom: 20px;
+  `;
+
+  const appIcon = document.createElement("img");
+  appIcon.src = "https://cdn.sdappnet.cloud/rtx/images/Windows-Logo.png";
+  appIcon.alt = "Windows";
+  appIcon.style.cssText = `
+    width: 80px;
+    height: 80px;
+    border-radius: 16px;
+    margin-bottom: 15px;
+  `;
+
+  leftPanel.appendChild(appIcon);
 
   // System Info Box (Windows style)
   const sysInfoBox = document.createElement("div");
