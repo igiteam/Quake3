@@ -333,8 +333,8 @@
   </div>
   <!-- Quake3-engine-js -->
   <script src="Quake3.min.js"></script>
-  <!-- Quake3-engine-js-touch-controls -->
-  <script src="electron_touchcontrols.js"></script>
+  <!-- Quake3-engine-js-pad-controls -->
+  <script src="electron_padcontrols.js"></script>
   <!-- Quake3-engine-js-run-game -->
   <script>
     var container = document.getElementById("container")
@@ -424,6 +424,8 @@
             files: event.target.files,
             cbStarted: function cbStarted() {
               pleaseWait.style.display = "none"
+              // Inject controller when game starts
+              injectJoystickController();
             },
           })
         })
@@ -560,6 +562,26 @@
         });
 
       })();
+  </script>
+  <script>
+    function injectJoystickController() {
+      // Check if controller already exists
+      if (!window.controller) {
+        // Create script element
+        const script = document.createElement('script');
+        script.src = 'controller-js.js';
+        script.onload = function () {
+          console.log('🎮 Joystick controller injected after game start');
+          // You can customize controller options for Quake 3
+          if (window.controller) {
+            // Adjust for FPS game
+            window.controller.options.position = 'bottom';
+            window.controller.options.opacity = 0.6;
+          }
+        };
+        document.head.appendChild(script);
+      }
+    }
   </script>
 </body>
 
