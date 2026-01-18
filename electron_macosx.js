@@ -8,24 +8,24 @@
 const MACOSX_BASH_SCRIPT = `#!/bin/bash
 
 # ===========================================
-# PS1 to macOS Porting Tool - Batch Script
+# Electron to macOS Porting Tool - Batch Script
 # ===========================================
-# This script will port multiple PS1 games to macOS
-# Created by MacOS_X_ PS1 Cover Grid
+# This script will port Electron game to macOS
+# Created by MacOS_X_ Electron Cover Grid
 # ============================================
 
 echo "Hello World from macOS Porting Tool!"
 echo "====================================="
 echo ""
-echo "📦 Batch PS1 Game Porting for macOS"
+echo "📦 Batch Electron Game Porting for macOS"
 echo "📅 Generated on: $(date)"
 echo "🎮 Total Games: [GAME_COUNT_PLACEHOLDER]"
 echo ""
 
 # Define directories
-MACOS_APPS_DIR="$HOME/Applications/PS1 Games"
-GAMES_DIR="$HOME/Games/PS1"
-DOWNLOADS_DIR="$HOME/Downloads/PS1_Games"
+MACOS_APPS_DIR="$HOME/Applications/Electron Games"
+GAMES_DIR="$HOME/Games/Electron"
+DOWNLOADS_DIR="$HOME/Downloads/Electron_Games"
 
 # Create directories
 echo "📁 Creating directories..."
@@ -69,13 +69,13 @@ port_game() {
     <key>CFBundleDisplayName</key>
     <string>$game_name</string>
     <key>CFBundleIdentifier</key>
-    <string>com.ps1.$game_name</string>
+    <string>com.Electron.$game_name</string>
     <key>CFBundleVersion</key>
     <string>1.0</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
-    <string>PS1</string>
+    <string>Electron</string>
     <key>CFBundleExecutable</key>
     <string>GameLauncher</string>
     <key>LSMinimumSystemVersion</key>
@@ -120,7 +120,7 @@ echo "   5. Generate icons"
 echo ""
 
 echo "⚙️  Porting Process:"
-echo "   1. Download PS1 ROMs"
+echo "   1. Download Electron ROMs"
 echo "   2. Extract game files"
 echo "   3. Create .app bundles"
 echo "   4. Add cover art icons"
@@ -133,8 +133,8 @@ echo "   This tool is for educational purposes only."
 echo "   Ensure you own legal copies of games you port."
 echo ""
 
-echo "🎯 Ready to port PS1 games to macOS!"
-echo "   Run: ./ps1_to_macos.sh to start"
+echo "🎯 Ready to port Electron games to macOS!"
+echo "   Run: ./Electron_to_macos.sh to start"
 echo ""
 
 # Example usage
@@ -144,7 +144,7 @@ echo '   port_game "Metal Gear Solid" "http://example.com/mgs.zip" "http://examp
 echo ""
 
 echo "💡 Tips:"
-echo "   • Run 'chmod +x ps1_to_macos.sh' first"
+echo "   • Run 'chmod +x Electron_to_macos.sh' first"
 echo "   • Use right-click → Open if you see security warnings"
 echo "   • Add to Dock: Drag .app to Dock"
 echo ""
@@ -307,7 +307,7 @@ function macosxJS(title, cover_url, splash_url) {
   `;
 
   const appName = document.createElement("h2");
-  appName.textContent = "PS1 to macOS";
+  appName.textContent = "Electron to macOS";
   appName.style.cssText = `
     color: #fff;
     margin: 0 0 5px 0;
@@ -465,7 +465,7 @@ function macosxJS(title, cover_url, splash_url) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "ps1_to_macos.sh";
+    a.download = "Electron_to_macos.sh";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -539,7 +539,7 @@ function macosxJS(title, cover_url, splash_url) {
   `;
 
   const scriptTitle = document.createElement("div");
-  scriptTitle.textContent = "bash/ps1_to_macos.sh";
+  scriptTitle.textContent = "bash/Electron_to_macos.sh";
   scriptTitle.style.cssText = `
     color: #ccc;
     font-family: 'Monaco', 'Menlo', monospace;
