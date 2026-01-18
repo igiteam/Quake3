@@ -6,24 +6,24 @@
 
 // PowerShell script for Windows Porting Tool
 const WINDOWS_POWERSHELL_SCRIPT = `# ===========================================
-# PS1 to Windows Porting Tool - PowerShell Script
+# Electron to Windows Porting Tool - PowerShell Script
 # ===========================================
-# This script will port multiple PS1 games to Windows
-# Created by Windows_ PS1 Porting Tool
+# This script will port multiple Electron games to Windows
+# Created by Windows_ Electron Porting Tool
 # ============================================
 
 Write-Host "Hello World from Windows Porting Tool!" -ForegroundColor Cyan
 Write-Host "==========================================" -ForegroundColor Gray
 Write-Host ""
-Write-Host "📦 Batch PS1 Game Porting for Windows" -ForegroundColor Yellow
+Write-Host "📦 Batch Electron Game Porting for Windows" -ForegroundColor Yellow
 Write-Host "📅 Generated on: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor Gray
 Write-Host "🎮 Total Games: [GAME_COUNT_PLACEHOLDER]" -ForegroundColor Green
 Write-Host ""
 
 # Define directories
-$WINDOWS_GAMES_DIR = "$env:USERPROFILE\\Games\\PS1"
-$DOWNLOADS_DIR = "$env:USERPROFILE\\Downloads\\PS1_Games"
-$DESKTOP_SHORTCUTS_DIR = "$env:USERPROFILE\\Desktop\\PS1 Games"
+$WINDOWS_GAMES_DIR = "$env:USERPROFILE\\Games\\Electron"
+$DOWNLOADS_DIR = "$env:USERPROFILE\\Downloads\\Electron_Games"
+$DESKTOP_SHORTCUTS_DIR = "$env:USERPROFILE\\Desktop\\Electron Games"
 
 # Create directories
 Write-Host "📁 Creating directories..." -ForegroundColor Cyan
@@ -57,7 +57,7 @@ function Port-Game {
     @"
 @echo off
 echo 🚀 Launching $GameName...
-echo Starting PS1 emulator...
+echo Starting Electron emulator...
 REM Add your emulator launch command here
 "@ | Out-File -FilePath $BatchFile -Encoding ASCII
     
@@ -80,7 +80,7 @@ Write-Host "   5. Generate icons" -ForegroundColor White
 Write-Host ""
 
 Write-Host "⚙️  Porting Process:" -ForegroundColor Cyan
-Write-Host "   1. Download PS1 ROMs" -ForegroundColor Gray
+Write-Host "   1. Download Electron ROMs" -ForegroundColor Gray
 Write-Host "   2. Extract game files" -ForegroundColor Gray
 Write-Host "   3. Create batch launchers" -ForegroundColor Gray
 Write-Host "   4. Add cover art icons" -ForegroundColor Gray
@@ -93,8 +93,8 @@ Write-Host "   This tool is for educational purposes only." -ForegroundColor Yel
 Write-Host "   Ensure you own legal copies of games you port." -ForegroundColor Yellow
 Write-Host ""
 
-Write-Host "🎯 Ready to port PS1 games to Windows!" -ForegroundColor Green
-Write-Host "   Run: .\\ps1_to_windows.ps1 to start" -ForegroundColor Cyan
+Write-Host "🎯 Ready to port Electron games to Windows!" -ForegroundColor Green
+Write-Host "   Run: .\\Electron_to_windows.Electron to start" -ForegroundColor Cyan
 Write-Host ""
 
 # Example usage
@@ -310,7 +310,7 @@ function windowsJS(title, cover_url, splash_url) {
   `;
 
   const toolTitle = document.createElement("h2");
-  toolTitle.textContent = "PS1 to Windows";
+  toolTitle.textContent = "Electron to Windows";
   toolTitle.style.cssText = `
     color: #0078d7;
     margin: 0 0 5px 0;
@@ -446,7 +446,7 @@ function windowsJS(title, cover_url, splash_url) {
 
   // Download Script Button (Windows style)
   const downloadButton = document.createElement("button");
-  downloadButton.textContent = "Download .ps1 File";
+  downloadButton.textContent = "Download .Electron File";
   downloadButton.style.cssText = `
     background: linear-gradient(to bottom, #e1e1e1, #d4d4d4);
     color: #000;
@@ -464,7 +464,7 @@ function windowsJS(title, cover_url, splash_url) {
     text-align: left;
   `;
   downloadButton.innerHTML =
-    '<i class="fas fa-download" style="font-size: 16px;"></i> Download .ps1 File';
+    '<i class="fas fa-download" style="font-size: 16px;"></i> Download .Electron File';
   downloadButton.addEventListener("mouseover", () => {
     downloadButton.style.background =
       "linear-gradient(to bottom, #f0f0f0, #e5e5e5)";
@@ -484,7 +484,7 @@ function windowsJS(title, cover_url, splash_url) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "ps1_to_windows.ps1";
+    a.download = "Electron_to_windows.Electron";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -562,7 +562,7 @@ function windowsJS(title, cover_url, splash_url) {
   `;
 
   const scriptTitle = document.createElement("div");
-  scriptTitle.textContent = "ps1_to_windows.ps1";
+  scriptTitle.textContent = "Electron_to_windows.Electron";
   scriptTitle.style.cssText = `
     color: #333;
     font-family: 'Consolas', 'Courier New', monospace;
