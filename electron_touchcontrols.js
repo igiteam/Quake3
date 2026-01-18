@@ -1,470 +1,395 @@
 /**
  * controller-js.js
- * A mobile-friendly virtual joystick controller that automatically detects devices
- * and provides touch/click controls with visual feedback and console logging.
+ * Mobile game controller wrapper for JoyStick library
+ * Auto-injects dual joystick controls for mobile/touch devices
  */
 
-// Vector2 class for 2D vector operations
-class Vector2 {
-  constructor(x, y) {
-    this.x = x;
-    this.y = y;
+(function () {
+  // Configuration
+  const CONFIG = {
+    enabled: true,
+    zIndex: 9999,
+    position: "fixed",
+    opacity: 0.8,
+    showLogs: true,
+    autoReturnToCenter: true,
+    joystickSize: 120,
+    joystickMargin: 40,
+    backgroundColor: "rgba(0, 0, 0, 0.2)",
+    leftColor: "#3498db",
+    rightColor: "#e74c3c",
+  };
+
+  // Mobile detection
+  const isMobile =
+    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+      navigator.userAgent
+    ) ||
+    "ontouchstart" in window ||
+    navigator.maxTouchPoints > 0;
+
+  // State management
+  let leftJoystick = null;
+  let rightJoystick = null;
+  let leftContainer = null;
+  let rightContainer = null;
+  let controllerEnabled = CONFIG.enabled;
+  let currentInput = {
+    left: { x: 0, y: 0, direction: "C", normalized: { x: 0, y: 0 } },
+    right: { x: 0, y: 0, direction: "C", normalized: { x: 0, y: 0 } },
+  };
+
+  // Create controller CSS
+  function injectStyles() {
+    const style = document.createElement("style");
+    style.textContent = `
+            .mobile-controller {
+                position: ${CONFIG.position};
+                z-index: ${CONFIG.zIndex};
+                touch-action: none;
+                pointer-events: auto;
+                opacity: ${CONFIG.opacity};
+            }
+            
+            .mobile-controller.left {
+                bottom: ${CONFIG.joystickMargin}px;
+                left: ${CONFIG.joystickMargin}px;
+            }
+            
+            .mobile-controller.right {
+                bottom: ${CONFIG.joystickMargin}px;
+                right: ${CONFIG.joystickMargin}px;
+            }
+            
+            .mobile-controller canvas {
+                background-color: ${CONFIG.backgroundColor};
+                border-radius: 50%;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            }
+            
+            .mobile-controller.left canvas {
+                border: 3px solid ${CONFIG.leftColor};
+            }
+            
+            .mobile-controller.right canvas {
+                border: 3px solid ${CONFIG.rightColor};
+            }
+            
+            .mobile-controller.disabled {
+                opacity: 0.1;
+                pointer-events: none;
+            }
+            
+            @media (max-width: 768px) {
+                .mobile-controller {
+                    width: ${CONFIG.joystickSize}px !important;
+                    height: ${CONFIG.joystickSize}px !important;
+                }
+            }
+        `;
+    document.head.appendChild(style);
   }
 
-  add(vector) {
-    return new Vector2(this.x + vector.x, this.y + vector.y);
+  // Create joystick containers
+  function createContainers() {
+    // Left container
+    leftContainer = document.createElement("div");
+    leftContainer.className = "mobile-controller left";
+    leftContainer.id = "left-joystick-container";
+    leftContainer.style.width = CONFIG.joystickSize + "px";
+    leftContainer.style.height = CONFIG.joystickSize + "px";
+
+    // Right container
+    rightContainer = document.createElement("div");
+    rightContainer.className = "mobile-controller right";
+    rightContainer.id = "right-joystick-container";
+    rightContainer.style.width = CONFIG.joystickSize + "px";
+    rightContainer.style.height = CONFIG.joystickSize + "px";
+
+    // Append to body
+    document.body.appendChild(leftContainer);
+    document.body.appendChild(rightContainer);
   }
 
-  sub(vector) {
-    return new Vector2(this.x - vector.x, this.y - vector.y);
+  // Initialize joysticks
+  function initializeJoysticks() {
+    // Left joystick (Movement)
+    leftJoystick = new JoyStick(
+      "left-joystick-container",
+      {
+        title: "left-joystick",
+        width: CONFIG.joystickSize,
+        height: CONFIG.joystickSize,
+        internalFillColor: CONFIG.leftColor,
+        internalStrokeColor: "#2980b9",
+        externalStrokeColor: "#3498db",
+        autoReturnToCenter: CONFIG.autoReturnToCenter,
+      },
+      function (stickData) {
+        updateInput("left", stickData);
+        logInput("LEFT", stickData);
+      }
+    );
+
+    // Right joystick (Look/Camera)
+    rightJoystick = new JoyStick(
+      "right-joystick-container",
+      {
+        title: "right-joystick",
+        width: CONFIG.joystickSize,
+        height: CONFIG.joystickSize,
+        internalFillColor: CONFIG.rightColor,
+        internalStrokeColor: "#c0392b",
+        externalStrokeColor: "#e74c3c",
+        autoReturnToCenter: CONFIG.autoReturnToCenter,
+      },
+      function (stickData) {
+        updateInput("right", stickData);
+        logInput("RIGHT", stickData);
+      }
+    );
+
+    if (CONFIG.showLogs) {
+      console.log("🎮 Dual joystick controller initialized");
+      console.log("📱 Mobile detection:", isMobile);
+      console.log("🎯 Left: Movement | Right: Look/Camera");
+    }
   }
 
-  mul(n) {
-    return new Vector2(this.x * n, this.y * n);
+  // Update input state
+  function updateInput(side, stickData) {
+    currentInput[side] = {
+      x: parseInt(stickData.x),
+      y: parseInt(stickData.y),
+      direction: stickData.cardinalDirection,
+      normalized: {
+        x: parseInt(stickData.x) / 100,
+        y: parseInt(stickData.y) / 100,
+      },
+      raw: stickData,
+    };
   }
 
-  div(n) {
-    return new Vector2(this.x / n, this.y / n);
-  }
+  // Log input changes
+  function logInput(side, stickData) {
+    if (!CONFIG.showLogs) return;
 
-  mag() {
-    return Math.sqrt(this.x ** 2 + this.y ** 2);
-  }
-
-  normalize() {
-    return this.mag() === 0 ? new Vector2(0, 0) : this.div(this.mag());
-  }
-}
-
-// Joystick Controller Class
-class JoystickController {
-  constructor(options = {}) {
-    // Default options
-    this.options = {
-      enabled: true,
-      showLogs: true,
-      joystickSize: 50,
-      handleSize: 25,
-      position: "bottom", // 'bottom', 'top', 'left', 'right'
-      opacity: 0.7,
-      leftColor: "#3498db",
-      rightColor: "#e74c3c",
-      baseColor: "#707070",
-      handleColor: "#3d3d3d",
-      ...options,
+    const directionMap = {
+      C: "CENTER",
+      N: "UP",
+      NE: "UP-RIGHT",
+      E: "RIGHT",
+      SE: "DOWN-RIGHT",
+      S: "DOWN",
+      SW: "DOWN-LEFT",
+      W: "LEFT",
+      NW: "UP-LEFT",
     };
 
-    // State tracking
-    this.isMobile = this.detectMobile();
-    this.isEnabled = this.options.enabled;
-    this.joysticks = [];
-    this.canvas = null;
-    this.context = null;
-    this.animationId = null;
-    this.currentInput = {
-      left: { x: 0, y: 0, direction: "center" },
-      right: { x: 0, y: 0, direction: "center" },
-    };
-
-    // Initialize
-    this.initialize();
-    this.bindEvents();
-  }
-
-  // Detect if device is mobile
-  detectMobile() {
-    return (
-      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-        navigator.userAgent
-      ) ||
-      "ontouchstart" in window ||
-      navigator.maxTouchPoints > 0
+    const direction =
+      directionMap[stickData.cardinalDirection] || stickData.cardinalDirection;
+    console.log(
+      `🎮 ${side}: ${direction} (X: ${stickData.x}, Y: ${stickData.y})`
     );
   }
 
-  // Initialize the controller
-  initialize() {
-    if (!this.isEnabled) return;
+  // Handle window resize
+  function handleResize() {
+    if (leftContainer && rightContainer) {
+      const size = Math.min(CONFIG.joystickSize, window.innerWidth / 6);
+      leftContainer.style.width = size + "px";
+      leftContainer.style.height = size + "px";
+      rightContainer.style.width = size + "px";
+      rightContainer.style.height = size + "px";
 
-    // Create canvas
-    this.canvas = document.createElement("canvas");
-    this.canvas.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 9999;
-            pointer-events: ${this.isEnabled ? "auto" : "none"};
-            opacity: ${this.options.opacity};
-            touch-action: none;
-        `;
-    this.context = this.canvas.getContext("2d");
-    document.body.appendChild(this.canvas);
-
-    // Set canvas size
-    this.resizeCanvas();
-
-    // Create joysticks
-    this.createJoysticks();
-
-    // Start animation loop
-    this.animate();
-
-    if (this.options.showLogs) {
-      console.log(
-        `🎮 Joystick Controller Initialized (${
-          this.isMobile ? "Mobile" : "Desktop"
-        })`
-      );
+      // Recreate joysticks with new size
+      if (leftJoystick && rightJoystick) {
+        leftContainer.innerHTML = "";
+        rightContainer.innerHTML = "";
+        initializeJoysticks();
+      }
     }
   }
 
-  // Create joysticks based on position
-  createJoysticks() {
-    const width = this.canvas.width;
-    const height = this.canvas.height;
-    const padding = 80;
-    const joystickRadius = this.options.joystickSize;
-    const handleRadius = this.options.handleSize;
+  // Toggle controller visibility
+  function toggleController() {
+    controllerEnabled = !controllerEnabled;
 
-    let leftPos, rightPos;
-
-    switch (this.options.position) {
-      case "top":
-        leftPos = new Vector2(padding, padding);
-        rightPos = new Vector2(width - padding, padding);
-        break;
-      case "left":
-        leftPos = new Vector2(padding, height / 2);
-        rightPos = new Vector2(padding, height - padding);
-        break;
-      case "right":
-        leftPos = new Vector2(width - padding, height / 2);
-        rightPos = new Vector2(width - padding, height - padding);
-        break;
-      default: // bottom
-        leftPos = new Vector2(padding, height - padding);
-        rightPos = new Vector2(width - padding, height - padding);
-    }
-
-    this.joysticks = [
-      new VirtualJoystick(
-        leftPos.x,
-        leftPos.y,
-        joystickRadius,
-        handleRadius,
-        "left"
-      ),
-      new VirtualJoystick(
-        rightPos.x,
-        rightPos.y,
-        joystickRadius,
-        handleRadius,
-        "right"
-      ),
-    ];
-  }
-
-  // Resize canvas to match window size
-  resizeCanvas() {
-    this.canvas.width = window.innerWidth;
-    this.canvas.height = window.innerHeight;
-
-    // Recreate joysticks with new positions
-    if (this.joysticks.length > 0) {
-      this.createJoysticks();
-    }
-  }
-
-  // Bind event listeners
-  bindEvents() {
-    // Window resize
-    window.addEventListener("resize", () => this.resizeCanvas());
-
-    // Enable/disable toggle (example: double-tap with three fingers)
-    if (this.isMobile) {
-      let lastTouchTime = 0;
-      document.addEventListener("touchstart", (e) => {
-        if (e.touches.length === 3) {
-          const currentTime = Date.now();
-          if (currentTime - lastTouchTime < 300) {
-            this.toggle();
-          }
-          lastTouchTime = currentTime;
-        }
-      });
-    } else {
-      // Desktop: Ctrl+Shift+J to toggle
-      document.addEventListener("keydown", (e) => {
-        if (e.ctrlKey && e.shiftKey && e.key === "J") {
-          this.toggle();
-        }
-      });
-    }
-  }
-
-  // Draw circle helper
-  circle(pos, radius, color) {
-    this.context.beginPath();
-    this.context.fillStyle = color;
-    this.context.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
-    this.context.fill();
-    this.context.closePath();
-  }
-
-  // Clear canvas
-  clear() {
-    this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
-  }
-
-  // Animation loop
-  animate() {
-    this.clear();
-
-    if (this.isEnabled) {
-      for (const joystick of this.joysticks) {
-        joystick.update();
-        joystick.draw(this.context, this.circle.bind(this));
-
-        // Update current input
-        const input = joystick.getInput();
-        this.currentInput[joystick.side] = input;
+    if (leftContainer && rightContainer) {
+      if (controllerEnabled) {
+        leftContainer.classList.remove("disabled");
+        rightContainer.classList.remove("disabled");
+      } else {
+        leftContainer.classList.add("disabled");
+        rightContainer.classList.add("disabled");
       }
     }
 
-    this.animationId = requestAnimationFrame(() => this.animate());
-  }
-
-  // Toggle controller on/off
-  toggle() {
-    this.isEnabled = !this.isEnabled;
-    this.canvas.style.pointerEvents = this.isEnabled ? "auto" : "none";
-    this.canvas.style.opacity = this.isEnabled ? this.options.opacity : "0";
-
-    if (this.options.showLogs) {
+    if (CONFIG.showLogs) {
       console.log(
-        `🎮 Joystick Controller ${this.isEnabled ? "Enabled" : "Disabled"}`
+        `🎮 Controller ${controllerEnabled ? "enabled" : "disabled"}`
       );
     }
+
+    return controllerEnabled;
   }
 
   // Enable controller
-  enable() {
-    this.isEnabled = true;
-    this.canvas.style.pointerEvents = "auto";
-    this.canvas.style.opacity = this.options.opacity;
+  function enableController() {
+    controllerEnabled = true;
+    if (leftContainer && rightContainer) {
+      leftContainer.classList.remove("disabled");
+      rightContainer.classList.remove("disabled");
+    }
   }
 
   // Disable controller
-  disable() {
-    this.isEnabled = false;
-    this.canvas.style.pointerEvents = "none";
-    this.canvas.style.opacity = "0";
-  }
-
-  // Get current input values
-  getInput() {
-    return this.currentInput;
-  }
-
-  // Clean up
-  destroy() {
-    if (this.animationId) {
-      cancelAnimationFrame(this.animationId);
-    }
-    if (this.canvas && this.canvas.parentNode) {
-      this.canvas.parentNode.removeChild(this.canvas);
-    }
-
-    if (this.options.showLogs) {
-      console.log("🎮 Joystick Controller Destroyed");
+  function disableController() {
+    controllerEnabled = false;
+    if (leftContainer && rightContainer) {
+      leftContainer.classList.add("disabled");
+      rightContainer.classList.add("disabled");
     }
   }
-}
 
-// Virtual Joystick Class
-class VirtualJoystick {
-  constructor(x, y, radius, handleRadius, side) {
-    this.origin = new Vector2(x, y);
-    this.pos = new Vector2(x, y);
-    this.radius = radius;
-    this.handleRadius = handleRadius;
-    this.handleFriction = 0.25;
-    this.ondrag = false;
-    this.touchPos = new Vector2(0, 0);
-    this.side = side; // 'left' or 'right'
-    this.lastDirection = "center";
+  // Destroy controller
+  function destroyController() {
+    if (leftContainer && leftContainer.parentNode) {
+      leftContainer.parentNode.removeChild(leftContainer);
+    }
+    if (rightContainer && rightContainer.parentNode) {
+      rightContainer.parentNode.removeChild(rightContainer);
+    }
 
-    this.bindEvents();
+    leftJoystick = null;
+    rightJoystick = null;
+    leftContainer = null;
+    rightContainer = null;
+
+    if (CONFIG.showLogs) {
+      console.log("🎮 Controller destroyed");
+    }
   }
 
-  bindEvents() {
-    const handleEvent = (e, isTouch) => {
-      const pos = isTouch
-        ? new Vector2(e.touches[0].pageX, e.touches[0].pageY)
-        : new Vector2(e.pageX, e.pageY);
+  // Initialize controller
+  function init() {
+    if (!isMobile) {
+      if (CONFIG.showLogs) {
+        console.log("🎮 Controller not initialized (not a mobile device)");
+      }
+      return false;
+    }
 
-      if (this.touchPos.sub(this.origin).mag() <= this.radius) {
-        this.ondrag = true;
+    try {
+      injectStyles();
+      createContainers();
+      initializeJoysticks();
+
+      // Add resize handler
+      window.addEventListener("resize", handleResize);
+
+      // Add toggle shortcuts
+      document.addEventListener("keydown", function (e) {
+        // Ctrl+Shift+C to toggle
+        if (e.ctrlKey && e.shiftKey && e.key === "C") {
+          toggleController();
+        }
+      });
+
+      // Triple tap to toggle on mobile
+      let tapCount = 0;
+      let lastTap = 0;
+      document.addEventListener("touchstart", function (e) {
+        const currentTime = new Date().getTime();
+        const tapLength = currentTime - lastTap;
+
+        if (tapLength < 300 && tapLength > 0) {
+          tapCount++;
+          if (tapCount === 3) {
+            toggleController();
+            tapCount = 0;
+          }
+        } else {
+          tapCount = 1;
+        }
+        lastTap = currentTime;
+      });
+
+      if (CONFIG.showLogs) {
+        console.log("🎮 Mobile controller initialized successfully");
+        console.log("📱 Triple-tap screen to toggle controller");
+        console.log("🖥️ Desktop: Ctrl+Shift+C to toggle");
       }
 
-      this.touchPos = pos;
-    };
-
-    // Touch events
-    document.addEventListener("touchstart", (e) => handleEvent(e, true));
-    document.addEventListener("touchmove", (e) => {
-      if (this.ondrag) {
-        this.touchPos = new Vector2(e.touches[0].pageX, e.touches[0].pageY);
-        e.preventDefault();
-      }
-    });
-    document.addEventListener("touchend", () => {
-      this.ondrag = false;
-      this.logInput("center");
-    });
-
-    // Mouse events
-    document.addEventListener("mousedown", (e) => handleEvent(e, false));
-    document.addEventListener("mousemove", (e) => {
-      if (this.ondrag) {
-        this.touchPos = new Vector2(e.pageX, e.pageY);
-      }
-    });
-    document.addEventListener("mouseup", () => {
-      this.ondrag = false;
-      this.logInput("center");
-    });
-  }
-
-  reposition() {
-    if (!this.ondrag) {
-      // Return to center
-      this.pos = this.pos.add(
-        this.origin.sub(this.pos).mul(this.handleFriction)
-      );
-    } else {
-      // Limit movement within joystick radius
-      const diff = this.touchPos.sub(this.origin);
-      const maxDist = Math.min(diff.mag(), this.radius);
-      this.pos = this.origin.add(diff.normalize().mul(maxDist));
-
-      // Log input direction
-      this.logInput();
+      return true;
+    } catch (error) {
+      console.error("🎮 Failed to initialize controller:", error);
+      return false;
     }
   }
 
-  logInput(direction = null) {
-    if (!window.controller || !window.controller.options.showLogs) return;
-
-    const input = this.getInput();
-    const newDirection = input.direction;
-
-    if (direction) {
-      newDirection = direction;
-    }
-
-    if (newDirection !== this.lastDirection) {
-      console.log(
-        `🎮 ${this.side.toUpperCase()} Joystick: ${newDirection} (x: ${input.x.toFixed(
-          2
-        )}, y: ${input.y.toFixed(2)})`
-      );
-      this.lastDirection = newDirection;
-    }
-  }
-
-  draw(context, circleFunc) {
-    // Draw base
-    circleFunc(this.origin, this.radius, "#707070");
-
-    // Draw handle
-    const handleColor = this.side === "left" ? "#3498db" : "#e74c3c";
-    circleFunc(this.pos, this.handleRadius, handleColor);
-
-    // Draw direction indicators
-    if (this.ondrag) {
-      context.save();
-      context.globalAlpha = 0.5;
-      context.strokeStyle = handleColor;
-      context.lineWidth = 2;
-
-      // Draw line from origin to handle
-      context.beginPath();
-      context.moveTo(this.origin.x, this.origin.y);
-      context.lineTo(this.pos.x, this.pos.y);
-      context.stroke();
-
-      context.restore();
-    }
-  }
-
-  update() {
-    this.reposition();
-  }
-
-  getInput() {
-    const diff = this.pos.sub(this.origin);
-    const normalized = diff.div(this.radius);
-
-    // Determine direction
-    let direction = "center";
-    if (diff.mag() > this.radius * 0.3) {
-      const angle = Math.atan2(normalized.y, normalized.x) * (180 / Math.PI);
-
-      if (angle >= -45 && angle < 45) direction = "right";
-      else if (angle >= 45 && angle < 135) direction = "down";
-      else if (angle >= 135 || angle < -135) direction = "left";
-      else if (angle >= -135 && angle < -45) direction = "up";
-    }
-
-    return {
-      x: normalized.x,
-      y: normalized.y,
-      direction: direction,
-      raw: diff,
-    };
-  }
-}
-
-// Auto-initialize when script loads
-(function () {
-  // Create global controller instance
-  window.controller = new JoystickController();
+  // Auto-initialize on mobile
+  let initialized = false;
 
   // Public API
-  window.JoystickController = JoystickController;
-  window.Vector2 = Vector2;
+  window.MobileController = {
+    init: function () {
+      if (!initialized) {
+        initialized = init();
+      }
+      return initialized;
+    },
 
-  // Add CSS for better mobile experience
-  const style = document.createElement("style");
-  style.textContent = `
-        @media (max-width: 768px) {
-            canvas[data-joystick] {
-                opacity: 0.9 !important;
-            }
-        }
-        
-        .joystick-debug {
-            position: fixed;
-            top: 10px;
-            left: 10px;
-            background: rgba(0,0,0,0.7);
-            color: white;
-            padding: 10px;
-            border-radius: 5px;
-            font-family: monospace;
-            z-index: 10000;
-            pointer-events: none;
-        }
-    `;
-  document.head.appendChild(style);
+    toggle: toggleController,
+    enable: enableController,
+    disable: disableController,
+    destroy: destroyController,
 
-  console.log("🎮 controller-js.js loaded successfully!");
-  console.log("📱 Mobile detected:", window.controller.isMobile);
-  console.log("🎯 Use window.controller.getInput() to get joystick values");
-  console.log("⚙️  Use window.controller.toggle() to enable/disable");
-  console.log("🖥️  Desktop: Press Ctrl+Shift+J to toggle");
-  console.log("📱 Mobile: Double-tap with three fingers to toggle");
+    getInput: function () {
+      return currentInput;
+    },
+
+    getLeftInput: function () {
+      return currentInput.left;
+    },
+
+    getRightInput: function () {
+      return currentInput.right;
+    },
+
+    isEnabled: function () {
+      return controllerEnabled;
+    },
+
+    isMobile: function () {
+      return isMobile;
+    },
+
+    updateConfig: function (newConfig) {
+      Object.assign(CONFIG, newConfig);
+      if (initialized) {
+        destroyController();
+        initialized = init();
+      }
+    },
+  };
+
+  // Auto-initialize if on mobile
+  if (isMobile) {
+    // Wait for DOM to be ready
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", function () {
+        setTimeout(() => MobileController.init(), 100);
+      });
+    } else {
+      setTimeout(() => MobileController.init(), 100);
+    }
+  }
+
+  // Log initialization
+  console.log("🎮 controller-js.js loaded");
+  console.log("📱 Mobile detection:", isMobile);
+  if (!isMobile) {
+    console.log("💡 To enable on desktop: MobileController.init()");
+  }
 })();

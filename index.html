@@ -335,6 +335,7 @@
   <script src="Quake3.min.js"></script>
   <!-- Quake3-engine-js-pad-controls -->
   <script src="electron_padcontrols.js"></script>
+  <script src="electron_touchcontrols.js"></script>
   <!-- Quake3-engine-js-run-game -->
   <script>
     var container = document.getElementById("container")
@@ -424,8 +425,12 @@
             files: event.target.files,
             cbStarted: function cbStarted() {
               pleaseWait.style.display = "none"
-              // Inject controller when game starts
-              injectJoystickController();
+              // Initialize mobile controller after game starts
+              if (window.MobileController && window.MobileController.isMobile()) {
+                window.MobileController.init();
+                // Optional: Map joystick inputs to Quake 3 controls
+                setupQuake3Controls();
+              }
             },
           })
         })
@@ -564,23 +569,59 @@
       })();
   </script>
   <script>
-    function injectJoystickController() {
-      // Check if controller already exists
-      // if (!window.controller) {
-      //   // Create script element
-      //   const script = document.createElement('script');
-      //   script.src = 'electron_touchcontrols.js';
-      //   script.onload = function () {
-      //     console.log('🎮 Joystick controller injected after game start');
-      //     // You can customize controller options for Quake 3
-      //     if (window.controller) {
-      //       // Adjust for FPS game
-      //       window.controller.options.position = 'bottom';
-      //       window.controller.options.opacity = 0.6;
-      //     }
-      //   };
-      //   document.head.appendChild(script);
-      // }
+    function setupQuake3Controls() {
+      if (!window.MobileController || !window.MobileController.isEnabled()) return;
+
+      // Example: Poll joystick inputs in your game loop
+      function gameLoop() {
+        const input = window.MobileController.getInput();
+
+        // Map left joystick to movement (WASD)
+        if (input.left.direction !== 'C') {
+          // Forward/Backward
+          if (input.left.normalized.y < -0.3) {
+            // Press 'W' key for forward
+            simulateKeyPress('KeyW');
+          } else if (input.left.normalized.y > 0.3) {
+            // Press 'S' key for backward
+            simulateKeyPress('KeyS');
+          }
+
+          // Left/Right
+          if (input.left.normalized.x < -0.3) {
+            // Press 'A' key for left
+            simulateKeyPress('KeyA');
+          } else if (input.left.normalized.x > 0.3) {
+            // Press 'D' key for right
+            simulateKeyPress('KeyD');
+          }
+        }
+
+        // Map right joystick to mouse movement (look)
+        if (input.right.direction !== 'C') {
+          const mouseSensitivity = 5;
+          const mouseX = input.right.normalized.x * mouseSensitivity;
+          const mouseY = input.right.normalized.y * mouseSensitivity;
+
+          // Simulate mouse movement
+          simulateMouseMove(mouseX, mouseY);
+        }
+
+        requestAnimationFrame(gameLoop);
+      }
+
+      // Helper functions for key simulation
+      function simulateKeyPress(keyCode) {
+        const event = new KeyboardEvent('keydown', { code: keyCode });
+        document.dispatchEvent(event);
+      }
+
+      function simulateMouseMove(deltaX, deltaY) {
+        // You would need to hook into Quake 3's mouse handling
+        // This depends on how Quake 3 JS is implemented
+      }
+      // Start game loop
+      gameLoop();
     }
   </script>
 </body>
