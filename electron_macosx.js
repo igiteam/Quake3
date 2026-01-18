@@ -153,28 +153,30 @@ echo "✨ Batch script generation complete!"
 echo "====================================="
 `;
 
-// Main function to show macOS porting tool
+// Main function to show macOS porting tool with original template style
 function macosxJS(title, cover_url, splash_url) {
   console.log("🎮 macOS Porting Tool activated");
   const gamesCount = 0;
+
   // Create the overlay if it doesn't exist
   let overlay = document.getElementById("macosx-overlay");
   if (!overlay) {
     overlay = document.createElement("div");
     overlay.id = "macosx-overlay";
     overlay.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.85);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 9999;
-            backdrop-filter: blur(5px);
-        `;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      backdrop-filter: blur(5px);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    `;
     document.body.appendChild(overlay);
   } else {
     overlay.style.display = "flex";
@@ -184,257 +186,277 @@ function macosxJS(title, cover_url, splash_url) {
   // Create the window
   const windowContainer = document.createElement("div");
   windowContainer.style.cssText = `
-        width: 90%;
-        max-width: 1000px;
-        height: 90vh;
-        background: #1a1a1a;
-        border-radius: 12px;
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
-        border: 1px solid #333;
-    `;
+    width: 90%;
+    max-width: 1000px;
+    height: 80vh;
+    background: rgba(30, 30, 40, 0.95);
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  `;
 
-  // Window header
+  // Window header with macOS controls
   const windowHeader = document.createElement("div");
   windowHeader.style.cssText = `
-        background: linear-gradient(to bottom, #2d2d2d, #1f1f1f);
-        padding: 15px 20px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        border-bottom: 1px solid #444;
-        user-select: none;
-    `;
+    background: rgba(40, 40, 50, 0.95);
+    padding: 12px 15px;
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    user-select: none;
+  `;
 
-  // Window controls
+  // Window controls (macOS style)
   const windowControls = document.createElement("div");
   windowControls.style.cssText = `
-        display: flex;
-        gap: 10px;
-        align-items: center;
-    `;
+    display: flex;
+    gap: 8px;
+  `;
 
+  // macOS window control buttons
+  const closeBtn = document.createElement("div");
+  closeBtn.className = "control-btn close-btn";
+  closeBtn.style.cssText = `
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #ff5f57;
+    transition: opacity 0.2s ease;
+    cursor: pointer;
+  `;
+
+  const minimizeBtn = document.createElement("div");
+  minimizeBtn.className = "control-btn minimize-btn";
+  minimizeBtn.style.cssText = `
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #ffbd2e;
+    transition: opacity 0.2s ease;
+    cursor: pointer;
+  `;
+
+  const maximizeBtn = document.createElement("div");
+  maximizeBtn.className = "control-btn maximize-btn";
+  maximizeBtn.style.cssText = `
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #28ca42;
+    transition: opacity 0.2s ease;
+    cursor: pointer;
+  `;
+
+  windowControls.appendChild(closeBtn);
+  windowControls.appendChild(minimizeBtn);
+  windowControls.appendChild(maximizeBtn);
+
+  // Window title
   const windowTitle = document.createElement("div");
   windowTitle.textContent = "macOS Porting Tool";
   windowTitle.style.cssText = `
-        color: #fff;
-        font-weight: 600;
-        font-size: 16px;
-        flex: 1;
-        text-align: center;
-        font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-    `;
+    flex: 1;
+    text-align: center;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #ccc;
+  `;
 
-  const closeButton = document.createElement("button");
-  closeButton.innerHTML = "✕";
-  closeButton.style.cssText = `
-        background: #ff5f57;
-        color: #000;
-        border: none;
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 14px;
-        font-weight: bold;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.2s;
-    `;
-  closeButton.onmouseover = () => (closeButton.style.opacity = "0.8");
-  closeButton.onmouseout = () => (closeButton.style.opacity = "1");
-  closeButton.onclick = () => {
-    overlay.style.display = "none";
-    console.log("🎮 macOS Porting Tool closed");
-  };
-
-  windowControls.appendChild(windowTitle);
-  windowControls.appendChild(closeButton);
   windowHeader.appendChild(windowControls);
+  windowHeader.appendChild(windowTitle);
 
-  // Window content
+  // Window content area
   const windowContent = document.createElement("div");
   windowContent.style.cssText = `
-        flex: 1;
-        display: flex;
-        overflow: hidden;
-        background: #000;
-    `;
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    background: #000;
+  `;
 
-  // Left panel (info)
+  // Left panel - Information
   const leftPanel = document.createElement("div");
   leftPanel.style.cssText = `
-        width: 300px;
-        background: #111;
-        padding: 20px;
-        display: flex;
-        flex-direction: column;
-        border-right: 1px solid #333;
-        overflow-y: auto;
-    `;
+    width: 300px;
+    background: #111;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    overflow-y: auto;
+  `;
 
-  // App icon
-  const appIcon = document.createElement("div");
+  // App header with icon
+  const appHeader = document.createElement("div");
+  appHeader.style.cssText = `
+    text-align: center;
+    margin-bottom: 20px;
+  `;
+
+  const appIcon = document.createElement("img");
+  appIcon.src = "https://cdn.sdappnet.cloud/rtx/images/mac-os-x.png";
+  appIcon.alt = "macOS";
   appIcon.style.cssText = `
-        text-align: center;
-        margin-bottom: 20px;
-    `;
+    width: 80px;
+    height: 80px;
+    border-radius: 16px;
+    margin-bottom: 15px;
+  `;
 
-  const iconImg = document.createElement("img");
-  iconImg.src = "https://cdn.sdappnet.cloud/rtx/images/mac-os-x.png";
-  iconImg.alt = "macOS";
-  iconImg.style.cssText = `
-        width: 100px;
-        height: 100px;
-        border-radius: 20px;
-        margin-bottom: 10px;
-    `;
-  appIcon.appendChild(iconImg);
+  const appName = document.createElement("h2");
+  appName.textContent = "PS1 to macOS";
+  appName.style.cssText = `
+    color: #fff;
+    margin: 0 0 5px 0;
+    font-size: 1.4rem;
+    font-weight: 600;
+  `;
 
-  const appTitle = document.createElement("h2");
-  appTitle.textContent = "PS1 to macOS Porting Tool";
-  appTitle.style.cssText = `
-        color: #fff;
-        margin: 0 0 10px 0;
-        font-size: 18px;
-        font-weight: 600;
-        text-align: center;
-    `;
-  appIcon.appendChild(appTitle);
+  const appSubtitle = document.createElement("p");
+  appSubtitle.textContent = "Porting Tool";
+  appSubtitle.style.cssText = `
+    color: #aaa;
+    margin: 0;
+    font-size: 0.95rem;
+  `;
 
-  const appDesc = document.createElement("p");
-  appDesc.textContent = "Batch port PS1 games to macOS .app bundles";
-  appDesc.style.cssText = `
-        color: #888;
-        margin: 0 0 20px 0;
-        font-size: 14px;
-        text-align: center;
-        line-height: 1.4;
-    `;
-  appIcon.appendChild(appDesc);
+  appHeader.appendChild(appIcon);
+  appHeader.appendChild(appName);
+  appHeader.appendChild(appSubtitle);
+  leftPanel.appendChild(appHeader);
 
-  leftPanel.appendChild(appIcon);
+  // Stats box
+  const statsBox = document.createElement("div");
+  statsBox.style.cssText = `
+    background: rgba(40, 40, 50, 0.9);
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+  `;
 
-  // Info box
-  const infoBox = document.createElement("div");
-  infoBox.style.cssText = `
-        background: #222;
-        border-radius: 8px;
-        padding: 15px;
-        margin-bottom: 20px;
-    `;
+  const statsTitle = document.createElement("h3");
+  statsTitle.textContent = "📊 Statistics";
+  statsTitle.style.cssText = `
+    color: #fff;
+    margin: 0 0 10px 0;
+    font-size: 16px;
+    font-weight: 600;
+  `;
 
-  const infoTitle = document.createElement("h3");
-  infoTitle.textContent = "📊 Statistics";
-  infoTitle.style.cssText = `
-        color: #fff;
-        margin: 0 0 10px 0;
-        font-size: 16px;
-        font-weight: 600;
-    `;
-  infoBox.appendChild(infoTitle);
-
-  const gameCount = document.createElement("div");
-  gameCount.textContent = `🎮 Available Games: ${gamesCount}`;
-  gameCount.style.cssText = `
-        color: #4CAF50;
-        margin-bottom: 8px;
-        font-size: 14px;
-    `;
-  infoBox.appendChild(gameCount);
+  const gameCountStat = document.createElement("div");
+  gameCountStat.textContent = `🎮 Games: ${gamesCount}`;
+  gameCountStat.style.cssText = `
+    color: #4CAF50;
+    margin-bottom: 8px;
+    font-size: 14px;
+  `;
 
   const scriptStatus = document.createElement("div");
   scriptStatus.textContent = "📝 Script: Ready";
   scriptStatus.style.cssText = `
-        color: #2196F3;
-        margin-bottom: 8px;
-        font-size: 14px;
-    `;
-  infoBox.appendChild(scriptStatus);
+    color: #2196F3;
+    margin-bottom: 8px;
+    font-size: 14px;
+  `;
 
-  leftPanel.appendChild(infoBox);
+  const generatedDate = document.createElement("div");
+  generatedDate.textContent = "📅 Generated: Now";
+  generatedDate.style.cssText = `
+    color: #FF9800;
+    font-size: 14px;
+  `;
+
+  statsBox.appendChild(statsTitle);
+  statsBox.appendChild(gameCountStat);
+  statsBox.appendChild(scriptStatus);
+  statsBox.appendChild(generatedDate);
+  leftPanel.appendChild(statsBox);
 
   // Action buttons
-  const actionsBox = document.createElement("div");
-  actionsBox.style.cssText = `
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        margin-top: auto;
-    `;
+  const actionsContainer = document.createElement("div");
+  actionsContainer.style.cssText = `
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: auto;
+  `;
 
-  // Copy button
+  // Copy Script Button
   const copyButton = document.createElement("button");
-  copyButton.textContent = "📋 Copy Bash Script";
+  copyButton.textContent = "📋 Copy Script";
   copyButton.style.cssText = `
-        background: linear-gradient(to bottom, #007AFF, #0056CC);
-        color: white;
-        border: none;
-        padding: 12px;
-        border-radius: 8px;
-        cursor: pointer;
-        font-size: 14px;
-        font-weight: 500;
-        transition: all 0.2s;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-    `;
-  copyButton.onmouseover = () => (copyButton.style.opacity = "0.9");
-  copyButton.onmouseout = () => (copyButton.style.opacity = "1");
-  copyButton.onclick = () => {
+    background: rgba(70, 70, 80, 0.9);
+    color: #ddd;
+    border: none;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  `;
+  copyButton.addEventListener("mouseover", () => {
+    copyButton.style.background = "rgba(80, 80, 90, 0.95)";
+    copyButton.style.color = "#fff";
+    copyButton.style.transform = "translateX(2px)";
+  });
+  copyButton.addEventListener("mouseout", () => {
+    copyButton.style.background = "rgba(70, 70, 80, 0.9)";
+    copyButton.style.color = "#ddd";
+    copyButton.style.transform = "translateX(0)";
+  });
+  copyButton.addEventListener("click", () => {
     const script = MACOSX_BASH_SCRIPT.replace(
       "[GAME_COUNT_PLACEHOLDER]",
       gamesCount
     );
-    navigator.clipboard
-      .writeText(script)
-      .then(() => {
-        const originalText = copyButton.textContent;
-        copyButton.textContent = "✅ Copied!";
-        copyButton.style.background =
-          "linear-gradient(to bottom, #4CAF50, #2E7D32)";
-        setTimeout(() => {
-          copyButton.textContent = originalText;
-          copyButton.style.background =
-            "linear-gradient(to bottom, #007AFF, #0056CC)";
-        }, 2000);
-      })
-      .catch((err) => {
-        console.error("Failed to copy:", err);
-        copyButton.textContent = "❌ Failed";
-        setTimeout(() => {
-          copyButton.textContent = "📋 Copy Bash Script";
-        }, 2000);
-      });
-  };
-  actionsBox.appendChild(copyButton);
+    navigator.clipboard.writeText(script).then(() => {
+      const originalText = copyButton.textContent;
+      copyButton.textContent = "✅ Copied!";
+      copyButton.style.background = "rgba(76, 175, 80, 0.9)";
+      setTimeout(() => {
+        copyButton.textContent = originalText;
+        copyButton.style.background = "rgba(70, 70, 80, 0.9)";
+      }, 2000);
+    });
+  });
 
-  // Download button
+  // Download Script Button
   const downloadButton = document.createElement("button");
-  downloadButton.textContent = "💾 Download .sh File";
+  downloadButton.textContent = "💾 Download .sh";
   downloadButton.style.cssText = `
-        background: linear-gradient(to bottom, #34C759, #28A745);
-        color: white;
-        border: none;
-        padding: 12px;
-        border-radius: 8px;
-        cursor: pointer;
-        font-size: 14px;
-        font-weight: 500;
-        transition: all 0.2s;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-    `;
-  downloadButton.onmouseover = () => (downloadButton.style.opacity = "0.9");
-  downloadButton.onmouseout = () => (downloadButton.style.opacity = "1");
-  downloadButton.onclick = () => {
+    background: rgba(70, 70, 80, 0.9);
+    color: #ddd;
+    border: none;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  `;
+  downloadButton.addEventListener("mouseover", () => {
+    downloadButton.style.background = "rgba(80, 80, 90, 0.95)";
+    downloadButton.style.color = "#fff";
+    downloadButton.style.transform = "translateX(2px)";
+  });
+  downloadButton.addEventListener("mouseout", () => {
+    downloadButton.style.background = "rgba(70, 70, 80, 0.9)";
+    downloadButton.style.color = "#ddd";
+    downloadButton.style.transform = "translateX(0)";
+  });
+  downloadButton.addEventListener("click", () => {
     const script = MACOSX_BASH_SCRIPT.replace(
       "[GAME_COUNT_PLACEHOLDER]",
       gamesCount
@@ -451,94 +473,103 @@ function macosxJS(title, cover_url, splash_url) {
 
     const originalText = downloadButton.textContent;
     downloadButton.textContent = "✅ Downloaded!";
+    downloadButton.style.background = "rgba(76, 175, 80, 0.9)";
     setTimeout(() => {
       downloadButton.textContent = originalText;
+      downloadButton.style.background = "rgba(70, 70, 80, 0.9)";
     }, 2000);
-  };
-  actionsBox.appendChild(downloadButton);
+  });
 
-  // Close button
-  const closeButton2 = document.createElement("button");
-  closeButton2.textContent = "✕ Close Tool";
-  closeButton2.style.cssText = `
-        background: linear-gradient(to bottom, #FF3B30, #D70015);
-        color: white;
-        border: none;
-        padding: 12px;
-        border-radius: 8px;
-        cursor: pointer;
-        font-size: 14px;
-        font-weight: 500;
-        transition: all 0.2s;
-    `;
-  closeButton2.onmouseover = () => (closeButton2.style.opacity = "0.9");
-  closeButton2.onmouseout = () => (closeButton2.style.opacity = "1");
-  closeButton2.onclick = () => (overlay.style.display = "none");
-  actionsBox.appendChild(closeButton2);
+  // Close Button
+  const closeButton = document.createElement("button");
+  closeButton.textContent = "✕ Close";
+  closeButton.style.cssText = `
+    background: rgba(90, 30, 30, 0.9);
+    color: #ddd;
+    border: none;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  `;
+  closeButton.addEventListener("mouseover", () => {
+    closeButton.style.background = "rgba(120, 40, 40, 0.95)";
+    closeButton.style.color = "#fff";
+    closeButton.style.transform = "translateX(2px)";
+  });
+  closeButton.addEventListener("mouseout", () => {
+    closeButton.style.background = "rgba(90, 30, 30, 0.9)";
+    closeButton.style.color = "#ddd";
+    closeButton.style.transform = "translateX(0)";
+  });
+  closeButton.addEventListener("click", () => {
+    overlay.style.display = "none";
+  });
 
-  leftPanel.appendChild(actionsBox);
+  actionsContainer.appendChild(copyButton);
+  actionsContainer.appendChild(downloadButton);
+  actionsContainer.appendChild(closeButton);
+  leftPanel.appendChild(actionsContainer);
 
-  // Right panel (script viewer)
+  // Right panel - Script viewer
   const rightPanel = document.createElement("div");
   rightPanel.style.cssText = `
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        background: #000;
-        overflow: hidden;
-    `;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: #000;
+    overflow: hidden;
+  `;
 
   // Script header
   const scriptHeader = document.createElement("div");
   scriptHeader.style.cssText = `
-        background: #1a1a1a;
-        padding: 15px 20px;
-        border-bottom: 1px solid #333;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    `;
+    background: rgba(40, 40, 50, 0.95);
+    padding: 12px 15px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  `;
 
   const scriptTitle = document.createElement("div");
   scriptTitle.textContent = "bash/ps1_to_macos.sh";
   scriptTitle.style.cssText = `
-        color: #fff;
-        font-family: 'Monaco', 'Menlo', monospace;
-        font-size: 14px;
-        font-weight: 500;
-    `;
+    color: #ccc;
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 0.9rem;
+    font-weight: 500;
+  `;
 
-  const scriptActions = document.createElement("div");
-  scriptActions.style.cssText = `
-        display: flex;
-        gap: 10px;
-        align-items: center;
-    `;
-
-  const lineCount = document.createElement("div");
-  lineCount.textContent = `${MACOSX_BASH_SCRIPT.split("\n").length} lines`;
-  lineCount.style.cssText = `
-        color: #888;
-        font-size: 12px;
-        font-family: monospace;
-    `;
+  const scriptInfo = document.createElement("div");
+  scriptInfo.textContent = `${MACOSX_BASH_SCRIPT.split("\n").length} lines`;
+  scriptInfo.style.cssText = `
+    color: #888;
+    font-size: 0.8rem;
+    font-family: monospace;
+  `;
 
   scriptHeader.appendChild(scriptTitle);
-  scriptActions.appendChild(lineCount);
-  scriptHeader.appendChild(scriptActions);
+  scriptHeader.appendChild(scriptInfo);
 
   // Script content
   const scriptContent = document.createElement("div");
   scriptContent.style.cssText = `
-        flex: 1;
-        overflow: auto;
-        padding: 20px;
-        font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
-        font-size: 13px;
-        line-height: 1.5;
-        color: #f0f0f0;
-        background: #000;
-    `;
+    flex: 1;
+    overflow: auto;
+    padding: 20px;
+    font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #f0f0f0;
+    background: #000;
+  `;
 
   // Add syntax highlighting
   const formattedScript = MACOSX_BASH_SCRIPT.replace(
@@ -573,7 +604,33 @@ function macosxJS(title, cover_url, splash_url) {
   windowContainer.appendChild(windowContent);
   overlay.appendChild(windowContainer);
 
-  // Add escape key handler
+  // Window control interactions
+  closeBtn.addEventListener("click", () => {
+    overlay.style.display = "none";
+  });
+
+  minimizeBtn.addEventListener("click", () => {
+    windowContent.style.display =
+      windowContent.style.display === "none" ? "flex" : "none";
+    minimizeBtn.style.opacity =
+      windowContent.style.display === "none" ? "0.5" : "1";
+  });
+
+  maximizeBtn.addEventListener("click", () => {
+    if (windowContainer.style.width === "100%") {
+      windowContainer.style.width = "90%";
+      windowContainer.style.maxWidth = "1000px";
+      windowContainer.style.height = "80vh";
+      maximizeBtn.style.opacity = "1";
+    } else {
+      windowContainer.style.width = "100%";
+      windowContainer.style.maxWidth = "100%";
+      windowContainer.style.height = "100%";
+      maximizeBtn.style.opacity = "0.5";
+    }
+  });
+
+  // Escape key to close
   const escapeHandler = (e) => {
     if (e.key === "Escape") {
       overlay.style.display = "none";
@@ -596,4 +653,4 @@ function macosxJS(title, cover_url, splash_url) {
 window.macosxJS = macosxJS;
 
 console.log("✅ electron-macosx.js loaded");
-console.log("💻 Call macosxJS(gamesCount) to show the porting tool");
+console.log("💻 Call macosxJS() to show the porting tool");
