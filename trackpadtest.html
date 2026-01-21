@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Touch Trackpad Test</title>
+    <meta charset="UTF-8">
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #222;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+
+        #test-area {
+            width: 100%;
+            height: 400px;
+            background: #333;
+            border: 2px solid #444;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #cursor {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: red;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        .log {
+            background: #111;
+            padding: 10px;
+            margin: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .controls {
+            padding: 20px;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #444;
+            color: white;
+            border: 1px solid #666;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #555;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="controls"
+        style="display: flex; align-items: center; justify-content: center; padding: 15px; padding-top: 90px;">
+        <p style="margin: 0;">Touch Trackpad Test</p>
+        <button onclick="enableTrackpad()">Enable Trackpad</button>
+        <button onclick="disableTrackpad()">Disable Trackpad</button>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+
+    <div id="test-area">
+        <div id="cursor"></div>
+        <p style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #888;">
+            Touch and drag here to test mouse movement<br>
+            Single tap for left click<br>
+            Long press (650ms) for right click<br>
+            Two-finger drag to scroll
+        </p>
+    </div>
+
+    <div class="log" id="event-log"></div>
+
+    <script>
+        let cursor = document.getElementById('cursor');
+        let log = document.getElementById('event-log');
+        let trackpadEnabled = false;
+
+        function logEvent(msg) {
+            const entry = document.createElement('div');
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function enableTrackpad() {
+            if (window.VirtualGamepad && window.VirtualGamepad.enableTouchTrackpad()) {
+                trackpadEnabled = true;
+                logEvent('Trackpad enabled');
+            } else {
+                logEvent('Failed to enable trackpad - VirtualGamepad not loaded');
+            }
+        }
+
+        function disableTrackpad() {
+            if (window.VirtualGamepad && window.VirtualGamepad.disableTouchTrackpad()) {
+                trackpadEnabled = false;
+                logEvent('Trackpad disabled');
+            }
+        }
+
+        function clearLog() {
+            log.innerHTML = '';
+        }
+
+        // Track mouse movement for visual feedback
+        document.addEventListener('mousemove', (e) => {
+            cursor.style.left = e.clientX + 'px';
+            cursor.style.top = e.clientY + 'px';
+        });
+
+        // Log mouse events
+        document.addEventListener('mousedown', (e) => {
+            logEvent(`Mouse ${e.button === 0 ? 'LEFT' : e.button === 2 ? 'RIGHT' : 'MIDDLE'} down at (${e.clientX}, ${e.clientY})`);
+        });
+
+        document.addEventListener('mouseup', (e) => {
+            logEvent(`Mouse ${e.button === 0 ? 'LEFT' : e.button === 2 ? 'RIGHT' : 'MIDDLE'} up`);
+        });
+
+        document.addEventListener('wheel', (e) => {
+            logEvent(`Scroll: deltaY=${e.deltaY}`);
+        });
+
+        // Initialize
+        logEvent('Page loaded. Click "Enable Trackpad" to start testing.');
+    </script>
+
+    <!-- Load your virtualgamepad.js here -->
+    <script src="virtualgamepad.js"></script>
+</body>
+
+</html>
