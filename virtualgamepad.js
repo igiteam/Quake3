@@ -7,7 +7,7 @@
   // Default configuration
   const DEFAULT_CONFIG = {
     zIndex: 99999999,
-    buttonSize: "60px",
+    buttonSize: 60,
     joystickSize: "150px",
     buttonOpacity: 0.7,
     enableButtonText: "🎮",
@@ -160,7 +160,7 @@
             white-space: nowrap;
             border: 1px solid #00aa00;
             box-shadow: 0 2px 10px rgba(0,0,0,0.5);
-            width: 90%;
+            width: 80%;
             max-height: 200px;
             overflow-y: auto;
             display: flex;
@@ -979,34 +979,225 @@
     }
   }
 
-  // ================ TOUCH CONTROLS UI ================
+  // ================ TOP BUTTONS WRAPPER ================
 
-  function createEnableButton() {
+  function createTopButtonsWrapper() {
+    const wrapper = document.createElement("div");
+    wrapper.id = "virtualgamepad-top-buttons";
+
+    wrapper.style.cssText = `
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 15px;
+        align-items: center;
+        justify-content: center;
+        z-index: ${config.zIndex};
+        pointer-events: auto;
+        background: transparent;
+        padding: 0;
+    `;
+
+    document.body.appendChild(wrapper);
+    logDebug("Top buttons wrapper created");
+    return wrapper;
+  }
+
+  // ================ QR CODE DIALOG ================
+
+  function showQrDialog() {
+    // Create dialog container
+    const dialog = document.createElement("div");
+    dialog.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.95);
+        border: 2px solid #00ff00;
+        border-radius: 15px;
+        padding: 25px;
+        z-index: ${config.zIndex + 1000};
+        color: white;
+        font-family: Arial, sans-serif;
+        max-width: 90%;
+        min-width: 300px;
+        text-align: center;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    `;
+
+    // Generate current page URL for QR code
+    const currentUrl = window.location.href;
+    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
+      currentUrl
+    )}`;
+
+    dialog.innerHTML = `
+        <h2 style="margin-top: 0; color: #00ff00; margin-bottom: 20px;">
+            <i class="fas fa-qrcode" style="margin-right: 10px;"></i>Share This Page
+        </h2>
+        
+        <div style="margin: 20px 0; display: flex; justify-content: center;">
+            <img src="${qrCodeUrl}" 
+                 alt="QR Code for ${currentUrl}"
+                 style="width: 200px; height: 200px; border: 2px solid #555; border-radius: 10px;"
+                 onerror="this.onerror=null; this.src='https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=ErrorGeneratingQR'">
+        </div>
+        
+        <div style="margin: 15px 0; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 8px; word-break: break-all;">
+            <strong>URL:</strong><br>
+            <span style="font-size: 12px; color: #aaa;">${currentUrl}</span>
+        </div>
+        
+        <p style="color: #aaa; font-size: 14px; margin-bottom: 20px;">
+            Scan this QR code with your mobile device to open this page
+        </p>
+        
+        <div style="display: flex; gap: 10px; justify-content: center;">
+            <button id="copy-url-btn" style="
+                padding: 10px 20px;
+                background: #0066cc;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+                font-size: 14px;
+                transition: background 0.3s;
+            ">
+                <i class="fas fa-copy" style="margin-right: 5px;"></i>Copy URL
+            </button>
+            
+            <button id="close-qr-dialog" style="
+                padding: 10px 20px;
+                background: #555;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+                font-size: 14px;
+                transition: background 0.3s;
+            ">
+                <i class="fas fa-times" style="margin-right: 5px;"></i>Close
+            </button>
+        </div>
+    `;
+
+    document.body.appendChild(dialog);
+
+    // Add event listeners
+    dialog.querySelector("#copy-url-btn").addEventListener("click", () => {
+      navigator.clipboard
+        .writeText(currentUrl)
+        .then(() => {
+          const btn = dialog.querySelector("#copy-url-btn");
+          const originalHtml = btn.innerHTML;
+          btn.innerHTML =
+            '<i class="fas fa-check" style="margin-right: 5px;"></i>Copied!';
+          btn.style.background = "#00aa00";
+
+          setTimeout(() => {
+            btn.innerHTML = originalHtml;
+            btn.style.background = "#0066cc";
+          }, 2000);
+        })
+        .catch((err) => {
+          console.error("Failed to copy URL:", err);
+          alert("Failed to copy URL to clipboard");
+        });
+    });
+
+    dialog.querySelector("#close-qr-dialog").addEventListener("click", () => {
+      dialog.remove();
+      logDebug("QR dialog closed");
+    });
+
+    // Close on background click
+    dialog.addEventListener("click", (e) => {
+      if (e.target === dialog) {
+        dialog.remove();
+      }
+    });
+
+    logDebug("QR dialog opened", { url: currentUrl });
+  }
+
+  // ================ CREATE QR BUTTON ================
+
+  function createQrButton(wrapper) {
+    const qrButton = document.createElement("button");
+
+    // Create SVG icon
+    const svgIcon = document.createElement("div");
+    svgIcon.innerHTML = `
+        <svg width="24px" height="24px" viewBox="0 0 24 24" fill="#ffffff" xmlns="http://www.w3.org/2000/svg">
+            <path d="M11,4V9a2,2,0,0,1-2,2H4A2,2,0,0,1,2,9V4A2,2,0,0,1,4,2H9A2,2,0,0,1,11,4Zm9-2H15a2,2,0,0,0-2,2V9a2,2,0,0,0,2,2h5a2,2,0,0,0,2-2V4A2,2,0,0,0,20,2ZM9,13H4a2,2,0,0,0-2,2v5a2,2,0,0,0,2,2H9a2,2,0,0,0,2-2V15A2,2,0,0,0,9,13Zm5,5h3a1,1,0,0,0,1-1V14a1,1,0,0,0-1-1H14a1,1,0,0,0-1,1v3A1,1,0,0,0,14,18Zm7-5a1,1,0,0,0-1,1v5a1,1,0,0,1-1,1H14a1,1,0,0,0,0,2h5a3,3,0,0,0,3-3V14A1,1,0,0,0,21,13Z"/>
+        </svg>
+    `;
+
+    qrButton.appendChild(svgIcon);
+    qrButton.title = "Share QR Code";
+    qrButton.style.cssText = `
+        width: ${config.buttonSize}px;
+        height: ${config.buttonSize}px;
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        border: 2px solid #ff66cc;
+        border-radius: 2px;
+        font-size: 20px;
+        cursor: pointer;
+        opacity: 0.9;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    `;
+
+    // Style the SVG to be white and centered
+    const svg = qrButton.querySelector("svg");
+    svg.style.cssText = `
+        width: 24px;
+        height: 24px;
+        fill: currentColor;
+        display: block;
+    `;
+
+    qrButton.addEventListener("click", showQrDialog);
+    qrButton.addEventListener("touchstart", (e) => {
+      e.preventDefault();
+      showQrDialog();
+    });
+
+    wrapper.appendChild(qrButton);
+    logDebug("QR button created with custom SVG");
+    return qrButton;
+  }
+
+  // ================ UPDATED ENABLE BUTTON ================
+
+  function createEnableButton(wrapper) {
     if (enableButton) return;
 
     enableButton = document.createElement("button");
     enableButton.innerHTML = config.enableButtonText;
     enableButton.title = "Toggle Virtual Gamepad";
     enableButton.style.cssText = `
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            width: ${config.buttonSize};
-            height: ${config.buttonSize};
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            border: 2px solid #00aaff;
-            border-radius: 50%;
-            font-size: 24px;
-            cursor: pointer;
-            z-index: ${config.zIndex};
-            opacity: 0.9;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-        `;
+        width: ${config.buttonSize}px;
+        height: ${config.buttonSize}px;
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        border: 2px solid #00aaff;
+        border-radius: 5px;
+        font-size: 24px;
+        cursor: pointer;
+        opacity: 0.9;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    `;
 
     enableButton.addEventListener("click", toggleVirtualGamepad);
     enableButton.addEventListener("touchstart", (e) => {
@@ -1014,39 +1205,32 @@
       toggleVirtualGamepad();
     });
 
-    document.body.appendChild(enableButton);
-
-    if (config.showCalibrationButton) {
-      createCalibrationButton();
-    }
-
-    logDebug("Enable button created");
+    wrapper.appendChild(enableButton);
+    logDebug("Enable button created (in wrapper)");
+    return enableButton;
   }
 
-  function createCalibrationButton() {
+  // ================ UPDATED CALIBRATION BUTTON ================
+
+  function createCalibrationButton(wrapper) {
     const calButton = document.createElement("button");
     calButton.innerHTML = "⚙️";
     calButton.title = "Calibrate Controls";
     calButton.style.cssText = `
-            position: fixed;
-            top: 20px;
-            left: calc(${config.buttonSize} + 30px);
-            width: 40px;
-            height: 40px;
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            border: 2px solid #ffaa00;
-            border-radius: 50%;
-            font-size: 18px;
-            cursor: pointer;
-            z-index: ${config.zIndex};
-            opacity: 0.9;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-        `;
+        width: ${config.buttonSize}px;
+        height: ${config.buttonSize}px;
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        border: 2px solid #ffaa00;
+        border-radius: 5px;
+        font-size: 20px;
+        cursor: pointer;
+        opacity: 0.9;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+     `;
 
     calButton.addEventListener("click", showCalibrationDialog);
     calButton.addEventListener("touchstart", (e) => {
@@ -1054,8 +1238,505 @@
       showCalibrationDialog();
     });
 
-    document.body.appendChild(calButton);
-    logDebug("Calibration button created");
+    wrapper.appendChild(calButton);
+    logDebug("Calibration button created (in wrapper)");
+    return calButton;
+  }
+
+  // ================ SHOULDER BUTTONS (L1/L2, R1/R2) ================
+
+  function createLeftShoulderButtons() {
+    const container = document.createElement("div");
+    container.className = "shoulder-buttons-left";
+
+    container.style.cssText = `
+        position: absolute;
+        left: 20px;
+        top: 50%;
+        width: 60px;
+        height: 120px;
+        pointer-events: auto;
+        z-index: ${config.zIndex - 1};
+        touch-action: none;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        align-items: center;
+    `;
+
+    const buttons = [
+      {
+        id: "L1",
+        label: "L1",
+        key: "BUTTON_LB",
+        color: "#ff6b6b",
+        size: "55px",
+      },
+      {
+        id: "L2",
+        label: "L2",
+        key: "BUTTON_LT",
+        color: "#ff8e53",
+        size: "55px",
+      },
+    ];
+
+    // State tracking for buttons
+    const buttonStates = {
+      BUTTON_LB: { pressed: false, element: null },
+      BUTTON_LT: { pressed: false, element: null },
+    };
+
+    buttons.forEach((btn) => {
+      const button = document.createElement("div");
+      button.className = "shoulder-button";
+      button.dataset.key = btn.key;
+      button.dataset.id = btn.id;
+
+      button.style.cssText = `
+            width: ${btn.size};
+            height: ${btn.size};
+            background: rgba(0, 0, 0, ${config.buttonOpacity});
+            border: 3px solid ${btn.color};
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+            transition: all 0.1s;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            position: relative;
+            z-index: 99999;
+        `;
+
+      button.textContent = btn.label;
+      buttonStates[btn.key].element = button;
+
+      // Create indicator dot for pressed state
+      const indicator = document.createElement("div");
+      indicator.style.cssText = `
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            width: 10px;
+            height: 10px;
+            background: #00ff00;
+            border-radius: 50%;
+            opacity: 0;
+            transition: opacity 0.2s;
+            box-shadow: 0 0 5px #00ff00;
+        `;
+      button.appendChild(indicator);
+
+      // Store button reference for cleanup
+      let currentButton = button;
+      let currentIndicator = indicator;
+
+      // Handle button press
+      const pressButton = () => {
+        if (!buttonStates[btn.key].pressed) {
+          buttonStates[btn.key].pressed = true;
+
+          // Visual feedback
+          currentButton.style.background = "rgba(255, 255, 255, 0.9)";
+          currentButton.style.color = "black";
+          currentButton.style.boxShadow = "0 0 15px " + btn.color;
+          currentButton.style.transform = "scale(0.95) translateY(2px)";
+          currentIndicator.style.opacity = "1";
+
+          // Trigger key press
+          const mapping = currentProfile.mappings[btn.key];
+          if (mapping) {
+            sendKeyEvent(mapping, "down");
+            logButtonEvent(btn.label, "pressed", mapping);
+            logDebug(`Shoulder button ${btn.label} PRESSED`, {
+              button: btn.label,
+              key: btn.key,
+              mapping: mapping,
+              side: "left",
+            });
+          }
+        }
+      };
+
+      // Handle button release
+      const releaseButton = () => {
+        if (buttonStates[btn.key].pressed) {
+          buttonStates[btn.key].pressed = false;
+
+          // Visual feedback
+          currentButton.style.background = `rgba(0, 0, 0, ${config.buttonOpacity})`;
+          currentButton.style.color = "white";
+          currentButton.style.boxShadow = "0 4px 8px rgba(0,0,0,0.3)";
+          currentButton.style.transform = "scale(1) translateY(0)";
+          currentIndicator.style.opacity = "0";
+
+          // Trigger key release
+          const mapping = currentProfile.mappings[btn.key];
+          if (mapping) {
+            sendKeyEvent(mapping, "up");
+            logButtonEvent(btn.label, "released", mapping);
+            logDebug(`Shoulder button ${btn.label} RELEASED`, {
+              button: btn.label,
+              key: btn.key,
+              mapping: mapping,
+              side: "left",
+            });
+          }
+        }
+      };
+
+      // Touch event handlers
+      const touchStartHandler = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        pressButton();
+      };
+
+      const touchEndHandler = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        releaseButton();
+      };
+
+      const touchCancelHandler = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        releaseButton();
+      };
+
+      // Mouse event handlers
+      const mouseDownHandler = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        pressButton();
+      };
+
+      const mouseUpHandler = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        releaseButton();
+      };
+
+      const mouseLeaveHandler = (e) => {
+        if (buttonStates[btn.key].pressed) {
+          releaseButton();
+        }
+      };
+
+      // Add touch event listeners
+      button.addEventListener("touchstart", touchStartHandler, {
+        passive: false,
+      });
+      button.addEventListener("touchend", touchEndHandler, { passive: false });
+      button.addEventListener("touchcancel", touchCancelHandler, {
+        passive: false,
+      });
+
+      // Add mouse event listeners
+      button.addEventListener("mousedown", mouseDownHandler);
+      button.addEventListener("mouseup", mouseUpHandler);
+      button.addEventListener("mouseleave", mouseLeaveHandler);
+
+      // Prevent context menu on long press
+      button.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+      });
+
+      // Store handlers for cleanup if needed
+      button._handlers = {
+        touchStart: touchStartHandler,
+        touchEnd: touchEndHandler,
+        touchCancel: touchCancelHandler,
+        mouseDown: mouseDownHandler,
+        mouseUp: mouseUpHandler,
+        mouseLeave: mouseLeaveHandler,
+      };
+
+      container.appendChild(button);
+    });
+
+    // Clean up function
+    container.cleanup = function () {
+      buttons.forEach((btn) => {
+        const button = buttonStates[btn.key].element;
+        if (button && button._handlers) {
+          button.removeEventListener("touchstart", button._handlers.touchStart);
+          button.removeEventListener("touchend", button._handlers.touchEnd);
+          button.removeEventListener(
+            "touchcancel",
+            button._handlers.touchCancel
+          );
+          button.removeEventListener("mousedown", button._handlers.mouseDown);
+          button.removeEventListener("mouseup", button._handlers.mouseUp);
+          button.removeEventListener("mouseleave", button._handlers.mouseLeave);
+        }
+      });
+    };
+
+    logDebug("Left shoulder buttons created", {
+      buttons: buttons.map((b) => ({
+        label: b.label,
+        key: b.key,
+        mapping: currentProfile.mappings[b.key],
+        position: "center-left",
+      })),
+    });
+
+    return container;
+  }
+
+  function createRightShoulderButtons() {
+    const container = document.createElement("div");
+    container.className = "shoulder-buttons-right";
+
+    container.style.cssText = `
+        position: absolute;
+        right: 20px;
+        top: 50%;
+        width: 60px;
+        height: 120px;
+        pointer-events: auto;
+        z-index: ${config.zIndex - 1};
+        touch-action: none;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        align-items: center;
+    `;
+
+    const buttons = [
+      {
+        id: "R1",
+        label: "R1",
+        key: "BUTTON_RB",
+        color: "#6b9fff",
+        size: "55px",
+      },
+      {
+        id: "R2",
+        label: "R2",
+        key: "BUTTON_RT",
+        color: "#53b8ff",
+        size: "55px",
+      },
+    ];
+
+    // State tracking for buttons
+    const buttonStates = {
+      BUTTON_RB: { pressed: false, element: null },
+      BUTTON_RT: { pressed: false, element: null },
+    };
+
+    buttons.forEach((btn) => {
+      const button = document.createElement("div");
+      button.className = "shoulder-button";
+      button.dataset.key = btn.key;
+      button.dataset.id = btn.id;
+
+      button.style.cssText = `
+            width: ${btn.size};
+            height: ${btn.size};
+            background: rgba(0, 0, 0, ${config.buttonOpacity});
+            border: 3px solid ${btn.color};
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+            transition: all 0.1s;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            position: relative;
+            z-index: 99999;
+        `;
+
+      button.textContent = btn.label;
+      buttonStates[btn.key].element = button;
+
+      // Create indicator dot for pressed state
+      const indicator = document.createElement("div");
+      indicator.style.cssText = `
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            width: 10px;
+            height: 10px;
+            background: #00ff00;
+            border-radius: 50%;
+            opacity: 0;
+            transition: opacity 0.2s;
+            box-shadow: 0 0 5px #00ff00;
+        `;
+      button.appendChild(indicator);
+
+      // Store button reference for cleanup
+      let currentButton = button;
+      let currentIndicator = indicator;
+
+      // Handle button press
+      const pressButton = () => {
+        if (!buttonStates[btn.key].pressed) {
+          buttonStates[btn.key].pressed = true;
+
+          // Visual feedback
+          currentButton.style.background = "rgba(255, 255, 255, 0.9)";
+          currentButton.style.color = "black";
+          currentButton.style.boxShadow = "0 0 15px " + btn.color;
+          currentButton.style.transform = "scale(0.95) translateY(2px)";
+          currentIndicator.style.opacity = "1";
+
+          // Trigger key press
+          const mapping = currentProfile.mappings[btn.key];
+          if (mapping) {
+            sendKeyEvent(mapping, "down");
+            logButtonEvent(btn.label, "pressed", mapping);
+            logDebug(`Shoulder button ${btn.label} PRESSED`, {
+              button: btn.label,
+              key: btn.key,
+              mapping: mapping,
+              side: "right",
+            });
+          }
+        }
+      };
+
+      // Handle button release
+      const releaseButton = () => {
+        if (buttonStates[btn.key].pressed) {
+          buttonStates[btn.key].pressed = false;
+
+          // Visual feedback
+          currentButton.style.background = `rgba(0, 0, 0, ${config.buttonOpacity})`;
+          currentButton.style.color = "white";
+          currentButton.style.boxShadow = "0 4px 8px rgba(0,0,0,0.3)";
+          currentButton.style.transform = "scale(1) translateY(0)";
+          currentIndicator.style.opacity = "0";
+
+          // Trigger key release
+          const mapping = currentProfile.mappings[btn.key];
+          if (mapping) {
+            sendKeyEvent(mapping, "up");
+            logButtonEvent(btn.label, "released", mapping);
+            logDebug(`Shoulder button ${btn.label} RELEASED`, {
+              button: btn.label,
+              key: btn.key,
+              mapping: mapping,
+              side: "right",
+            });
+          }
+        }
+      };
+
+      // Touch event handlers
+      const touchStartHandler = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        pressButton();
+      };
+
+      const touchEndHandler = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        releaseButton();
+      };
+
+      const touchCancelHandler = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        releaseButton();
+      };
+
+      // Mouse event handlers
+      const mouseDownHandler = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        pressButton();
+      };
+
+      const mouseUpHandler = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        releaseButton();
+      };
+
+      const mouseLeaveHandler = (e) => {
+        if (buttonStates[btn.key].pressed) {
+          releaseButton();
+        }
+      };
+
+      // Add touch event listeners
+      button.addEventListener("touchstart", touchStartHandler, {
+        passive: false,
+      });
+      button.addEventListener("touchend", touchEndHandler, { passive: false });
+      button.addEventListener("touchcancel", touchCancelHandler, {
+        passive: false,
+      });
+
+      // Add mouse event listeners
+      button.addEventListener("mousedown", mouseDownHandler);
+      button.addEventListener("mouseup", mouseUpHandler);
+      button.addEventListener("mouseleave", mouseLeaveHandler);
+
+      // Prevent context menu on long press
+      button.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+      });
+
+      // Store handlers for cleanup if needed
+      button._handlers = {
+        touchStart: touchStartHandler,
+        touchEnd: touchEndHandler,
+        touchCancel: touchCancelHandler,
+        mouseDown: mouseDownHandler,
+        mouseUp: mouseUpHandler,
+        mouseLeave: mouseLeaveHandler,
+      };
+
+      container.appendChild(button);
+    });
+
+    // Clean up function
+    container.cleanup = function () {
+      buttons.forEach((btn) => {
+        const button = buttonStates[btn.key].element;
+        if (button && button._handlers) {
+          button.removeEventListener("touchstart", button._handlers.touchStart);
+          button.removeEventListener("touchend", button._handlers.touchEnd);
+          button.removeEventListener(
+            "touchcancel",
+            button._handlers.touchCancel
+          );
+          button.removeEventListener("mousedown", button._handlers.mouseDown);
+          button.removeEventListener("mouseup", button._handlers.mouseUp);
+          button.removeEventListener("mouseleave", button._handlers.mouseLeave);
+        }
+      });
+    };
+
+    logDebug("Right shoulder buttons created", {
+      buttons: buttons.map((b) => ({
+        label: b.label,
+        key: b.key,
+        mapping: currentProfile.mappings[b.key],
+        position: "center-right",
+      })),
+    });
+
+    return container;
   }
 
   function createTouchControls() {
@@ -1144,15 +1825,29 @@
             pointer-events: auto;
         `;
 
-    // In createTouchControls function, after creating leftJoystick:
+    // Create D-pad
     const dpad = createDpadTouch();
-    //
+
+    // ================ ADD SHOULDER BUTTONS HERE ================
+    // Create left shoulder buttons (L1/L2)
+    const leftShoulderButtons = createLeftShoulderButtons();
+
+    // Create right shoulder buttons (R1/R2)
+    const rightShoulderButtons = createRightShoulderButtons();
+    // ==========================================================
+
     // append on screen buttons
     overlay.appendChild(leftJoystick);
     overlay.appendChild(rightJoystick);
     overlay.appendChild(buttonCluster);
     overlay.appendChild(dpad);
     overlay.appendChild(systemButtons);
+
+    // Add shoulder buttons to overlay
+    overlay.appendChild(leftShoulderButtons);
+    overlay.appendChild(rightShoulderButtons);
+
+    document.body.appendChild(overlay);
 
     document.body.appendChild(overlay);
 
@@ -2391,7 +3086,7 @@
     container.style.cssText = `
         position: absolute;
         left: 30px;
-        top: 130px;
+        top: 30px;
         width: ${config.dpadSize || "120px"};
         height: ${config.dpadSize || "120px"};
         pointer-events: auto;
@@ -2782,7 +3477,7 @@
 
     if (isEnabled) {
       createTouchControls();
-      enableButton.innerHTML = "✅";
+      enableButton.innerHTML = "🎮";
       enableButton.title = "Disable Virtual Gamepad";
       enableButton.style.background = "rgba(0, 170, 0, 0.8)";
       enableButton.style.borderColor = "#00ff00";
@@ -2883,8 +3578,15 @@
     switchProfile(config.defaultProfile);
 
     // Create enable button
-    createEnableButton();
+    // Create top buttons wrapper
+    const topButtonsWrapper = createTopButtonsWrapper();
 
+    // Create all top buttons inside the wrapper
+    createEnableButton(topButtonsWrapper);
+    if (config.showCalibrationButton) {
+      createCalibrationButton(topButtonsWrapper);
+    }
+    createQrButton(topButtonsWrapper);
     // Auto-enable on mobile
     if (config.autoEnableOnTouch && "ontouchstart" in window) {
       const isMobile =
