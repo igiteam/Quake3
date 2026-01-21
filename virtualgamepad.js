@@ -146,7 +146,7 @@
       debugOverlay.id = "virtualgamepad-debug-overlay";
       debugOverlay.style.cssText = `
             position: fixed;
-            top: 10px;
+            top: calc(50%);
             left: 50%;
             transform: translateX(-50%);
             background: rgba(0, 0, 0, 0.9);
@@ -160,14 +160,13 @@
             white-space: nowrap;
             border: 1px solid #00aa00;
             box-shadow: 0 2px 10px rgba(0,0,0,0.5);
-            max-width: 150px;
+            width: 90%;
             max-height: 200px;
             overflow-y: auto;
             display: flex;
             flex-direction: column;
             align-items: center;
-            min-width: 300px;
-        `;
+         `;
       document.body.appendChild(debugOverlay);
     }
 
@@ -571,9 +570,9 @@
             color: white;
             font-family: Arial, sans-serif;
             max-width: 90%;
+            min-width: 80%;
             max-height: 90%;
             overflow-y: auto;
-            box-shadow: 0 0 50px rgba(0, 255, 0, 0.5);
         `;
 
     calibrationDialog.innerHTML = `
@@ -606,9 +605,11 @@
             
             <div id="calibration-buttons" style="
                 display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+                grid-template-columns: repeat(4, minmax(200px, 1fr));
                 gap: 10px;
                 margin-bottom: 20px;
+                overflow-y: auto;
+                max-height: 60vh;
             ">
                 <!-- Buttons will be generated here -->
             </div>
@@ -672,8 +673,8 @@
 
       // Shoulder buttons
       "BUTTON_LB",
-      "BUTTON_RB",
       "BUTTON_LT",
+      "BUTTON_RB",
       "BUTTON_RT",
 
       // Thumbstick clicks
@@ -715,12 +716,12 @@
             B: "B Button",
             X: "X Button",
             Y: "Y Button",
-            LB: "Left Bumper",
-            RB: "Right Bumper",
-            LT: "Left Trigger",
-            RT: "Right Trigger",
-            L3: "Left Stick Click",
-            R3: "Right Stick Click",
+            LB: "LB",
+            LT: "LT",
+            RB: "RB",
+            RT: "RT",
+            L3: "L3",
+            R3: "R3",
             START: "Start",
             SELECT: "Select",
             DPAD_UP: "D-Pad Up",
@@ -2474,12 +2475,12 @@
     const style = document.createElementNS(svgNS, "style");
     style.textContent = `
         #dpad-cluster { 
-            opacity: 0.5;
-            fill: currentColor;
+            opacity: 1;
+            fill: #333333;
         }
         #dpad-buttons { 
-            opacity: 0.75;
-            fill: currentColor;
+            opacity: 1;
+            fill: lightGray;
         }
         #dpad-buttons > * {
             transform-origin: 5px 5px;
@@ -2502,7 +2503,6 @@
 
     // Create main group
     const g = document.createElementNS(svgNS, "g");
-    g.setAttribute("style", "opacity: 0.5; fill: currentColor;");
 
     // Cluster circle
     const clusterCircle = document.createElementNS(svgNS, "circle");
@@ -2510,7 +2510,7 @@
     clusterCircle.setAttribute("cx", "5");
     clusterCircle.setAttribute("cy", "5");
     clusterCircle.setAttribute("r", "5");
-    clusterCircle.setAttribute("fill", "currentColor");
+    clusterCircle.setAttribute("fill", "white");
 
     // Buttons group
     const buttonsGroup = document.createElementNS(svgNS, "g");
@@ -2523,7 +2523,7 @@
       circle.setAttribute("cy", "5");
       circle.setAttribute("r", "5");
       circle.setAttribute("mask", `url(#dpad-${maskId})`);
-      circle.setAttribute("fill", "currentColor");
+      circle.setAttribute("fill", "#666666");
       circle.dataset.index = index;
       circle.dataset.key = `BUTTON_DPAD_${maskId}`;
       circle.dataset.direction = maskId.toLowerCase();
@@ -2535,9 +2535,6 @@
     svg.appendChild(g);
     svgWrapper.appendChild(svg);
     container.appendChild(svgWrapper);
-
-    // Set color for the entire SVG (matching your D-Pad colors)
-    svg.style.color = "#2e2e2e";
 
     // State tracking
     const buttonStates = {
@@ -2764,28 +2761,6 @@
     svg.addEventListener("mouseleave", (e) => {
       handlePointerEnd();
     });
-
-    // Add label
-    const label = document.createElement("div");
-    label.className = "dpad-label";
-    label.textContent = "D-PAD";
-    label.style.cssText = `
-        position: absolute;
-        top: -25px;
-        left: 0;
-        right: 0;
-        color: white;
-        font-size: 12px;
-        text-shadow: 1px 1px 2px black;
-        white-space: nowrap;
-        text-align: center;
-        font-weight: bold;
-        background: rgba(0,0,0,0.5);
-        padding: 2px 8px;
-        border-radius: 10px;
-        pointer-events: none;
-    `;
-    container.appendChild(label);
 
     logDebug("D-Pad touch controls created (circle style)", {
       size: config.dpadSize || "120px",
