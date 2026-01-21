@@ -1177,7 +1177,6 @@
   }
 
   // ================ REVISED JOYSTICK IMPLEMENTATION ================
-
   function createJoystick(side, type) {
     const joystick = document.createElement("div");
     joystick.className = `joystick joystick-${side}`;
@@ -1293,276 +1292,255 @@
     const joystickArea = joystick.querySelector(".joystick-area");
     const nub = joystick.querySelector(".joystick-nub");
 
-    let activeTouch = null;
+    // State for this specific joystick instance
+    let activeTouchId = null; // Track by touch identifier, not just active/not
     let lastTapTime = 0;
-    let tapCount = 0;
-    let tapTimeout = null;
-    let isDoubleTapGesture = false;
-    const maxDistance = parseFloat(config.joystickSize) * 0.3; // 30% of joystick size
+    const maxDistance = parseFloat(config.joystickSize) * 0.35; // 35% of joystick size
 
     // Track which keys are currently pressed (for left joystick)
-    let activeKeys = {
+    const activeKeys = {
       up: false,
       down: false,
       left: false,
       right: false,
     };
 
-    // Track last processed position for smooth updates
-    let lastPosition = { x: 0, y: 0 };
+    // For right joystick: mouse movement tracking
+    let mouseInterval = null;
+    let currentMouseVector = { x: 0, y: 0 };
+    let lastMouseUpdate = 0;
 
-    // Mouse movement tracking (for right joystick)
-    let mouseMovementInterval = null;
-    let currentMouseDelta = { x: 0, y: 0 };
-    let mouseMovementActive = false;
-    let lastMouseValues = { x: 0, y: 0 };
-
-    function updateJoystick(touch) {
-      if (!activeTouch) return;
-
-      // If we're in double-tap gesture mode, ignore movement
-      if (isDoubleTapGesture) return;
-
+    // Get normalized joystick position (-1 to 1)
+    function getJoystickPosition(touch) {
       const rect = joystickArea.getBoundingClientRect();
       const centerX = rect.left + rect.width / 2;
       const centerY = rect.top + rect.height / 2;
-      const maxDist = rect.width / 2 - (rect.width * 0.4) / 2;
 
       const touchX = touch.clientX - centerX;
       const touchY = touch.clientY - centerY;
 
-      // Calculate distance from center
-      const distance = Math.sqrt(touchX * touchX + touchY * touchY);
-
-      // Normalize position (-1 to 1)
-      let normX = touchX / maxDist;
-      let normY = touchY / maxDist;
+      // Normalize to -1 to 1 range
+      let normX = touchX / maxDistance;
+      let normY = touchY / maxDistance;
 
       // Clamp to circle
-      if (distance > maxDist) {
-        normX = (touchX / distance) * 1;
-        normY = (touchY / distance) * 1;
+      const distance = Math.sqrt(normX * normX + normY * normY);
+      if (distance > 1) {
+        normX /= distance;
+        normY /= distance;
       }
 
-      // Apply deadzone
-      const threshold = config.joystickDeadZone;
-      const applyDeadzone = (value) => {
-        if (Math.abs(value) < threshold) return 0;
-        // Scale from deadzone to 1
-        return (
-          Math.sign(value) * ((Math.abs(value) - threshold) / (1 - threshold))
-        );
-      };
-
-      normX = applyDeadzone(normX);
-      normY = applyDeadzone(normY);
-
-      // Update nub position with smooth animation
-      nub.style.transform = `translate(-50%, -50%) translate(${
-        normX * maxDist
-      }px, ${normY * maxDist}px)`;
-
-      // Trigger actions (with position change check)
-      if (
-        Math.abs(normX - lastPosition.x) > 0.01 ||
-        Math.abs(normY - lastPosition.y) > 0.01
-      ) {
-        triggerJoystickAction(side, normX, normY);
-        lastPosition = { x: normX, y: normY };
+      // Apply deadzone with smooth scaling
+      const deadzone = config.joystickDeadZone;
+      if (Math.abs(normX) < deadzone) normX = 0;
+      else {
+        // Scale from deadzone to 1 smoothly
+        normX =
+          Math.sign(normX) * ((Math.abs(normX) - deadzone) / (1 - deadzone));
       }
 
-      logJoystickEvent(side, type, normX, normY, [
-        `X: ${normX.toFixed(3)}`,
-        `Y: ${normY.toFixed(3)}`,
-        `Distance: ${distance.toFixed(1)}px`,
-      ]);
+      if (Math.abs(normY) < deadzone) normY = 0;
+      else {
+        normY =
+          Math.sign(normY) * ((Math.abs(normY) - deadzone) / (1 - deadzone));
+      }
+
+      return { x: normX, y: normY, distance: Math.min(distance, 1) };
     }
 
-    function triggerJoystickAction(side, x, y) {
-      const actions = [];
+    // Update joystick nub position
+    function updateNubPosition(x, y) {
+      nub.style.transform = `translate(-50%, -50%) translate(${
+        x * maxDistance
+      }px, ${y * maxDistance}px)`;
+    }
 
-      if (side === "left") {
-        // Movement joystick - continuous key holding with proper diagonal support
+    // Handle left stick (WASD movement keys)
+    function handleLeftStick(x, y) {
+      const threshold = 0.1; // Activation threshold
 
-        // Calculate direction intensities
-        const upIntensity = Math.max(0, -y); // Negative y = up
-        const downIntensity = Math.max(0, y); // Positive y = down
-        const leftIntensity = Math.max(0, -x); // Negative x = left
-        const rightIntensity = Math.max(0, x); // Positive x = right
+      // Determine which directions are active
+      const upActive = y < -threshold;
+      const downActive = y > threshold;
+      const leftActive = x < -threshold;
+      const rightActive = x > threshold;
 
-        // Define threshold for activation (lower than deadzone for smooth transitions)
-        const activationThreshold = 0.1;
+      // Get key mappings
+      const upKey = currentProfile.mappings.JOYSTICK_LEFT_UP || "w";
+      const downKey = currentProfile.mappings.JOYSTICK_LEFT_DOWN || "s";
+      const leftKey = currentProfile.mappings.JOYSTICK_LEFT_LEFT || "a";
+      const rightKey = currentProfile.mappings.JOYSTICK_LEFT_RIGHT || "d";
 
-        // Update UP key
-        const shouldPressUp = upIntensity > activationThreshold;
-        if (shouldPressUp !== activeKeys.up) {
-          if (shouldPressUp) {
-            sendKeyEvent(
-              currentProfile.mappings.JOYSTICK_LEFT_UP || "w",
-              "down"
-            );
-            actions.push("UP: PRESSED");
-          } else {
-            sendKeyEvent(currentProfile.mappings.JOYSTICK_LEFT_UP || "w", "up");
-            actions.push("UP: RELEASED");
-          }
-          activeKeys.up = shouldPressUp;
+      // Update keys based on current state - only send events when state changes
+      if (upActive !== activeKeys.up) {
+        if (upActive) {
+          sendKeyEvent(upKey, "down");
+          logDebug(`LEFT JOYSTICK: UP PRESSED (${upKey})`, {
+            x: x.toFixed(3),
+            y: y.toFixed(3),
+          });
+        } else {
+          sendKeyEvent(upKey, "up");
+          logDebug(`LEFT JOYSTICK: UP RELEASED (${upKey})`, {
+            x: x.toFixed(3),
+            y: y.toFixed(3),
+          });
         }
-
-        // Update DOWN key
-        const shouldPressDown = downIntensity > activationThreshold;
-        if (shouldPressDown !== activeKeys.down) {
-          if (shouldPressDown) {
-            sendKeyEvent(
-              currentProfile.mappings.JOYSTICK_LEFT_DOWN || "s",
-              "down"
-            );
-            actions.push("DOWN: PRESSED");
-          } else {
-            sendKeyEvent(
-              currentProfile.mappings.JOYSTICK_LEFT_DOWN || "s",
-              "up"
-            );
-            actions.push("DOWN: RELEASED");
-          }
-          activeKeys.down = shouldPressDown;
-        }
-
-        // Update LEFT key
-        const shouldPressLeft = leftIntensity > activationThreshold;
-        if (shouldPressLeft !== activeKeys.left) {
-          if (shouldPressLeft) {
-            sendKeyEvent(
-              currentProfile.mappings.JOYSTICK_LEFT_LEFT || "a",
-              "down"
-            );
-            actions.push("LEFT: PRESSED");
-          } else {
-            sendKeyEvent(
-              currentProfile.mappings.JOYSTICK_LEFT_LEFT || "a",
-              "up"
-            );
-            actions.push("LEFT: RELEASED");
-          }
-          activeKeys.left = shouldPressLeft;
-        }
-
-        // Update RIGHT key
-        const shouldPressRight = rightIntensity > activationThreshold;
-        if (shouldPressRight !== activeKeys.right) {
-          if (shouldPressRight) {
-            sendKeyEvent(
-              currentProfile.mappings.JOYSTICK_LEFT_RIGHT || "d",
-              "down"
-            );
-            actions.push("RIGHT: PRESSED");
-          } else {
-            sendKeyEvent(
-              currentProfile.mappings.JOYSTICK_LEFT_RIGHT || "d",
-              "up"
-            );
-            actions.push("RIGHT: RELEASED");
-          }
-          activeKeys.right = shouldPressRight;
-        }
-
-        // Log current state
-        if (activeKeys.up && activeKeys.left) actions.push("DIAGONAL: UP-LEFT");
-        if (activeKeys.up && activeKeys.right)
-          actions.push("DIAGONAL: UP-RIGHT");
-        if (activeKeys.down && activeKeys.left)
-          actions.push("DIAGONAL: DOWN-LEFT");
-        if (activeKeys.down && activeKeys.right)
-          actions.push("DIAGONAL: DOWN-RIGHT");
-      } else {
-        // Right joystick - smooth mouse look
-        currentMouseDelta.x = x;
-        currentMouseDelta.y = y;
-
-        // Check if we should start/stop mouse movement
-        const shouldMove = Math.abs(x) > 0.01 || Math.abs(y) > 0.01;
-
-        if (shouldMove && !mouseMovementActive) {
-          startMouseMovement();
-          mouseMovementActive = true;
-          actions.push("MOUSE: STARTED");
-        } else if (!shouldMove && mouseMovementActive) {
-          stopMouseMovement();
-          mouseMovementActive = false;
-          actions.push("MOUSE: STOPPED");
-        }
-
-        if (mouseMovementActive) {
-          actions.push(`MOUSE_DELTA: X=${x.toFixed(3)}, Y=${y.toFixed(3)}`);
-        }
+        activeKeys.up = upActive;
       }
 
-      return actions;
+      if (downActive !== activeKeys.down) {
+        if (downActive) {
+          sendKeyEvent(downKey, "down");
+          logDebug(`LEFT JOYSTICK: DOWN PRESSED (${downKey})`, {
+            x: x.toFixed(3),
+            y: y.toFixed(3),
+          });
+        } else {
+          sendKeyEvent(downKey, "up");
+          logDebug(`LEFT JOYSTICK: DOWN RELEASED (${downKey})`, {
+            x: x.toFixed(3),
+            y: y.toFixed(3),
+          });
+        }
+        activeKeys.down = downActive;
+      }
+
+      if (leftActive !== activeKeys.left) {
+        if (leftActive) {
+          sendKeyEvent(leftKey, "down");
+          logDebug(`LEFT JOYSTICK: LEFT PRESSED (${leftKey})`, {
+            x: x.toFixed(3),
+            y: y.toFixed(3),
+          });
+        } else {
+          sendKeyEvent(leftKey, "up");
+          logDebug(`LEFT JOYSTICK: LEFT RELEASED (${leftKey})`, {
+            x: x.toFixed(3),
+            y: y.toFixed(3),
+          });
+        }
+        activeKeys.left = leftActive;
+      }
+
+      if (rightActive !== activeKeys.right) {
+        if (rightActive) {
+          sendKeyEvent(rightKey, "down");
+          logDebug(`LEFT JOYSTICK: RIGHT PRESSED (${rightKey})`, {
+            x: x.toFixed(3),
+            y: y.toFixed(3),
+          });
+        } else {
+          sendKeyEvent(rightKey, "up");
+          logDebug(`LEFT JOYSTICK: RIGHT RELEASED (${rightKey})`, {
+            x: x.toFixed(3),
+            y: y.toFixed(3),
+          });
+        }
+        activeKeys.right = rightActive;
+      }
+
+      // Log diagonals
+      if (activeKeys.up && activeKeys.left) {
+        logDebug(`LEFT JOYSTICK: DIAGONAL UP-LEFT`, {
+          x: x.toFixed(3),
+          y: y.toFixed(3),
+        });
+      }
+      if (activeKeys.up && activeKeys.right) {
+        logDebug(`LEFT JOYSTICK: DIAGONAL UP-RIGHT`, {
+          x: x.toFixed(3),
+          y: y.toFixed(3),
+        });
+      }
+      if (activeKeys.down && activeKeys.left) {
+        logDebug(`LEFT JOYSTICK: DIAGONAL DOWN-LEFT`, {
+          x: x.toFixed(3),
+          y: y.toFixed(3),
+        });
+      }
+      if (activeKeys.down && activeKeys.right) {
+        logDebug(`LEFT JOYSTICK: DIAGONAL DOWN-RIGHT`, {
+          x: x.toFixed(3),
+          y: y.toFixed(3),
+        });
+      }
+    }
+
+    // Handle right stick (mouse movement)
+    function handleRightStick(x, y) {
+      currentMouseVector.x = x;
+      currentMouseVector.y = y;
+
+      // Start mouse movement if not already running and we have movement
+      if (!mouseInterval && (Math.abs(x) > 0.01 || Math.abs(y) > 0.01)) {
+        startMouseMovement();
+      }
+
+      logDebug(`RIGHT JOYSTICK: Mouse delta`, {
+        x: x.toFixed(3),
+        y: y.toFixed(3),
+        magnitude: Math.sqrt(x * x + y * y).toFixed(3),
+      });
     }
 
     function startMouseMovement() {
-      // Clear any existing interval
-      if (mouseMovementInterval) {
-        clearInterval(mouseMovementInterval);
-      }
+      if (mouseInterval) clearInterval(mouseInterval);
 
-      // Start sending mouse movement events
-      mouseMovementInterval = setInterval(() => {
-        // Only send if values have changed significantly
-        if (
-          Math.abs(currentMouseDelta.x - lastMouseValues.x) > 0.001 ||
-          Math.abs(currentMouseDelta.y - lastMouseValues.y) > 0.001
-        ) {
-          const sensitivity = config.mouseLookSensitivity * 8;
-          const deltaX = currentMouseDelta.x * sensitivity;
-          const deltaY = currentMouseDelta.y * sensitivity;
+      mouseInterval = setInterval(() => {
+        const now = Date.now();
+        if (now - lastMouseUpdate >= 16) {
+          // ~60fps
+          if (
+            Math.abs(currentMouseVector.x) > 0.001 ||
+            Math.abs(currentMouseVector.y) > 0.001
+          ) {
+            const sensitivity = config.mouseLookSensitivity * 8;
+            const deltaX = currentMouseVector.x * sensitivity;
+            const deltaY = currentMouseVector.y * sensitivity;
 
-          simulateMouseMove(deltaX, deltaY);
-          lastMouseValues = { x: currentMouseDelta.x, y: currentMouseDelta.y };
-
-          logDebug("Mouse movement emulated", {
-            deltaX: deltaX.toFixed(2),
-            deltaY: deltaY.toFixed(2),
-            rawX: currentMouseDelta.x.toFixed(3),
-            rawY: currentMouseDelta.y.toFixed(3),
-          });
+            simulateMouseMove(deltaX, deltaY);
+            lastMouseUpdate = now;
+          }
         }
-      }, 16); // ~60fps
+      }, 16);
     }
 
     function stopMouseMovement() {
-      if (mouseMovementInterval) {
-        clearInterval(mouseMovementInterval);
-        mouseMovementInterval = null;
+      if (mouseInterval) {
+        clearInterval(mouseInterval);
+        mouseInterval = null;
       }
-      // Don't reset currentMouseDelta - keep last position for smooth transitions
-      logDebug("Mouse movement stopped");
+      currentMouseVector = { x: 0, y: 0 };
+      logDebug("RIGHT JOYSTICK: Mouse movement stopped");
     }
 
+    // Reset joystick to center
     function resetJoystick() {
-      // Smooth return to center
-      nub.style.transition =
-        "transform 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55)";
+      // Smooth nub return
+      nub.style.transition = "transform 0.2s ease-out";
       nub.style.transform = "translate(-50%, -50%)";
 
       setTimeout(() => {
-        nub.style.transition =
-          "transform 0.1s cubic-bezier(0.25, 0.46, 0.45, 0.94)";
-      }, 300);
+        nub.style.transition = "";
+      }, 200);
 
+      // Release all movement keys if left stick
       if (side === "left") {
-        // Release all active keys for left stick
         if (activeKeys.up) {
           sendKeyEvent(currentProfile.mappings.JOYSTICK_LEFT_UP || "w", "up");
           activeKeys.up = false;
+          logDebug(`LEFT JOYSTICK: UP RELEASED (reset)`);
         }
         if (activeKeys.down) {
           sendKeyEvent(currentProfile.mappings.JOYSTICK_LEFT_DOWN || "s", "up");
           activeKeys.down = false;
+          logDebug(`LEFT JOYSTICK: DOWN RELEASED (reset)`);
         }
         if (activeKeys.left) {
           sendKeyEvent(currentProfile.mappings.JOYSTICK_LEFT_LEFT || "a", "up");
           activeKeys.left = false;
+          logDebug(`LEFT JOYSTICK: LEFT RELEASED (reset)`);
         }
         if (activeKeys.right) {
           sendKeyEvent(
@@ -1570,158 +1548,190 @@
             "up"
           );
           activeKeys.right = false;
+          logDebug(`LEFT JOYSTICK: RIGHT RELEASED (reset)`);
         }
       } else {
-        // Smoothly stop mouse movement for right stick
+        // Stop mouse movement if right stick
         stopMouseMovement();
-        mouseMovementActive = false;
-        lastMouseValues = { x: 0, y: 0 };
       }
 
-      // Reset tracking
-      lastPosition = { x: 0, y: 0 };
-      isDoubleTapGesture = false;
-
-      logJoystickEvent(side, type, 0, 0, ["RESET"]);
-      activeTouch = null;
+      activeTouchId = null;
+      logDebug(`${side.toUpperCase()} JOYSTICK: Reset`);
     }
 
-    // Handle double-tap detection
+    // Handle touch start with proper multi-touch tracking
     function handleTouchStart(e) {
       e.preventDefault();
-      if (activeTouch) return;
+      e.stopPropagation();
 
-      const touch = e.touches[0];
-      const now = Date.now();
+      // Get all touches on this specific joystick area
+      const rect = joystickArea.getBoundingClientRect();
+      const touches = Array.from(e.touches);
 
-      // Check for double-tap
-      if (
-        config.clickableThumbsticks &&
-        now - lastTapTime < config.doubleTapThreshold
-      ) {
-        // Second tap detected - this is a double-tap
-        isDoubleTapGesture = true;
+      // Find the first touch that's within this joystick's bounds and not already assigned
+      for (const touch of touches) {
+        const touchX = touch.clientX;
+        const touchY = touch.clientY;
 
-        // Clear any pending timeout
-        if (tapTimeout) {
-          clearTimeout(tapTimeout);
-          tapTimeout = null;
+        // Check if touch is within this joystick's bounds
+        if (
+          touchX >= rect.left &&
+          touchX <= rect.right &&
+          touchY >= rect.top &&
+          touchY <= rect.bottom
+        ) {
+          // Check if this touch is already being tracked by another joystick
+          // (we'll track this globally later, but for now just check if we're already tracking)
+          if (!activeTouchId) {
+            activeTouchId = touch.identifier;
+
+            // Check for double-tap for L3/R3
+            const now = Date.now();
+            if (
+              config.clickableThumbsticks &&
+              now - lastTapTime < config.doubleTapThreshold
+            ) {
+              // Double-tap detected - trigger L3/R3
+              const button = side === "left" ? "BUTTON_L3" : "BUTTON_R3";
+              const mapping = currentProfile.mappings[button];
+
+              if (mapping) {
+                // Visual feedback
+                joystickArea.style.backgroundColor = "rgba(255, 200, 0, 0.7)";
+                setTimeout(() => {
+                  joystickArea.style.backgroundColor = `rgba(0, 0, 0, ${config.buttonOpacity})`;
+                }, 200);
+
+                // Send click event
+                sendKeyEvent(mapping, "down");
+                setTimeout(() => sendKeyEvent(mapping, "up"), 100);
+
+                logDebug(
+                  `${side.toUpperCase()} JOYSTICK: Double-tap ${button}`,
+                  {
+                    mapping,
+                  }
+                );
+              }
+
+              // Don't track this as joystick movement
+              activeTouchId = null;
+              return;
+            }
+
+            lastTapTime = now;
+
+            // Update joystick immediately
+            const pos = getJoystickPosition(touch);
+            updateNubPosition(pos.x, pos.y);
+
+            if (side === "left") {
+              handleLeftStick(pos.x, pos.y);
+            } else {
+              handleRightStick(pos.x, pos.y);
+            }
+
+            logDebug(`${side.toUpperCase()} JOYSTICK: Touch started`, {
+              touchId: activeTouchId,
+              position: { x: pos.x.toFixed(3), y: pos.y.toFixed(3) },
+            });
+
+            break; // Found our touch, stop looking
+          }
         }
-
-        // Trigger L3/R3 click
-        const button = side === "left" ? "BUTTON_L3" : "BUTTON_R3";
-        const mapping = currentProfile.mappings[button];
-
-        if (mapping) {
-          // Visual feedback
-          joystickArea.style.backgroundColor = "rgba(255, 200, 0, 0.7)";
-          setTimeout(() => {
-            joystickArea.style.backgroundColor = `rgba(0, 0, 0, ${config.buttonOpacity})`;
-          }, 200);
-
-          // Send click event
-          sendKeyEvent(mapping, "down");
-          setTimeout(() => sendKeyEvent(mapping, "up"), 50);
-
-          logDebug("Thumbstick double-tap click", {
-            side: side,
-            button: button,
-            mapping: mapping,
-          });
-        }
-
-        // Reset tap tracking
-        tapCount = 0;
-        lastTapTime = 0;
-
-        // Don't start joystick tracking for this touch
-        return;
       }
-
-      // First tap or normal touch
-      activeTouch = touch;
-      lastTapTime = now;
-      tapCount = 1;
-
-      // Set timeout to reset tap count
-      if (tapTimeout) clearTimeout(tapTimeout);
-      tapTimeout = setTimeout(() => {
-        tapCount = 0;
-      }, config.doubleTapThreshold * 2);
-
-      // Start tracking this touch for joystick movement
-      isDoubleTapGesture = false;
-      updateJoystick(touch);
-
-      logDebug("Joystick touch started", {
-        side: side,
-        type: type,
-        touchId: touch.identifier,
-        isDoubleTap: false,
-      });
     }
 
-    // Event listeners
-    joystickArea.addEventListener("touchstart", handleTouchStart);
-
-    joystickArea.addEventListener("touchmove", (e) => {
+    // Handle touch move with proper touch tracking
+    function handleTouchMove(e) {
       e.preventDefault();
-      if (!activeTouch || isDoubleTapGesture) return;
+      e.stopPropagation();
 
-      for (let touch of e.touches) {
-        if (touch.identifier === activeTouch.identifier) {
-          updateJoystick(touch);
+      if (!activeTouchId) return;
+
+      // Find our active touch among all touches
+      for (const touch of e.touches) {
+        if (touch.identifier === activeTouchId) {
+          const pos = getJoystickPosition(touch);
+          updateNubPosition(pos.x, pos.y);
+
+          if (side === "left") {
+            handleLeftStick(pos.x, pos.y);
+          } else {
+            handleRightStick(pos.x, pos.y);
+          }
           break;
         }
       }
-    });
+    }
 
-    joystickArea.addEventListener("touchend", (e) => {
+    // Handle touch end with proper touch tracking
+    function handleTouchEnd(e) {
       e.preventDefault();
+      e.stopPropagation();
 
-      if (isDoubleTapGesture) {
-        // Double-tap gesture completed, just clean up
-        isDoubleTapGesture = false;
-        activeTouch = null;
-        return;
+      if (!activeTouchId) return;
+
+      // Check if our active touch ended
+      for (const touch of e.changedTouches) {
+        if (touch.identifier === activeTouchId) {
+          logDebug(`${side.toUpperCase()} JOYSTICK: Touch ended`, {
+            touchId: activeTouchId,
+          });
+          resetJoystick();
+          break;
+        }
       }
+    }
 
-      logDebug("Joystick touch ended", {
-        side: side,
-        type: type,
-        touchId: activeTouch ? activeTouch.identifier : "none",
-      });
-      resetJoystick();
-    });
-
-    joystickArea.addEventListener("touchcancel", (e) => {
+    // Handle touch cancel with proper touch tracking
+    function handleTouchCancel(e) {
       e.preventDefault();
-      logDebug("Joystick touch cancelled", {
-        side: side,
-        type: type,
-      });
-      resetJoystick();
+      e.stopPropagation();
+
+      if (!activeTouchId) return;
+
+      // Check if our active touch was cancelled
+      for (const touch of e.changedTouches) {
+        if (touch.identifier === activeTouchId) {
+          logDebug(`${side.toUpperCase()} JOYSTICK: Touch cancelled`, {
+            touchId: activeTouchId,
+          });
+          resetJoystick();
+          break;
+        }
+      }
+    }
+
+    // Event listeners - use capturing phase to ensure we get events
+    joystickArea.addEventListener("touchstart", handleTouchStart, {
+      passive: false,
+    });
+    joystickArea.addEventListener("touchmove", handleTouchMove, {
+      passive: false,
+    });
+    joystickArea.addEventListener("touchend", handleTouchEnd, {
+      passive: false,
+    });
+    joystickArea.addEventListener("touchcancel", handleTouchCancel, {
+      passive: false,
     });
 
     // Mouse support for desktop testing
     joystickArea.addEventListener("mousedown", (e) => {
       e.preventDefault();
-      if (activeTouch) return;
+      e.stopPropagation();
 
-      activeTouch = {
-        clientX: e.clientX,
-        clientY: e.clientY,
-        identifier: "mouse",
-      };
+      if (activeTouchId) return; // Already tracking
 
+      activeTouchId = "mouse";
+
+      // Check for double-tap
       const now = Date.now();
-
-      // Double-tap check for mouse
       if (
         config.clickableThumbsticks &&
         now - lastTapTime < config.doubleTapThreshold
       ) {
-        // Double-tap detected
         const button = side === "left" ? "BUTTON_L3" : "BUTTON_R3";
         const mapping = currentProfile.mappings[button];
 
@@ -1732,24 +1742,44 @@
           }, 200);
 
           sendKeyEvent(mapping, "down");
-          setTimeout(() => sendKeyEvent(mapping, "up"), 50);
+          setTimeout(() => sendKeyEvent(mapping, "up"), 100);
 
-          logDebug("Mouse double-tap click", { side, button, mapping });
+          logDebug(
+            `${side.toUpperCase()} JOYSTICK: Mouse double-tap ${button}`,
+            {
+              mapping,
+            }
+          );
         }
 
-        activeTouch = null;
-        lastTapTime = 0;
+        activeTouchId = null;
         return;
       }
 
       lastTapTime = now;
-      updateJoystick(activeTouch);
+
+      // Update immediately
+      const touch = { clientX: e.clientX, clientY: e.clientY };
+      const pos = getJoystickPosition(touch);
+      updateNubPosition(pos.x, pos.y);
+
+      if (side === "left") {
+        handleLeftStick(pos.x, pos.y);
+      } else {
+        handleRightStick(pos.x, pos.y);
+      }
 
       // Mouse move tracking
       const mouseMoveHandler = (e) => {
-        activeTouch.clientX = e.clientX;
-        activeTouch.clientY = e.clientY;
-        updateJoystick(activeTouch);
+        const touch = { clientX: e.clientX, clientY: e.clientY };
+        const pos = getJoystickPosition(touch);
+        updateNubPosition(pos.x, pos.y);
+
+        if (side === "left") {
+          handleLeftStick(pos.x, pos.y);
+        } else {
+          handleRightStick(pos.x, pos.y);
+        }
       };
 
       const mouseUpHandler = () => {
@@ -1765,11 +1795,8 @@
     // Clean up function
     joystick.cleanup = function () {
       resetJoystick();
-      if (mouseMovementInterval) {
-        clearInterval(mouseMovementInterval);
-      }
-      if (tapTimeout) {
-        clearTimeout(tapTimeout);
+      if (mouseInterval) {
+        clearInterval(mouseInterval);
       }
     };
 
@@ -2353,8 +2380,6 @@
 
     return container;
   }
-
-  // ================ D-PAD TOUCH IMPLEMENTATION ================
 
   // ================ D-PAD TOUCH IMPLEMENTATION (Circle Style) ================
 
