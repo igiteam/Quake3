@@ -1,5 +1,5 @@
 // virtualgamepad.js - Complete Touch-to-Keyboard Mapper with Mobile Keyboard Support
-// Features: Visual joystick circles, mobile keyboard compatibility, full calibration, detailed logging, drag & reposition mode
+// Features: Visual joystick circles, mobile keyboard compatibility, full calibration, detailed logging
 
 (function () {
   ("use strict");
@@ -30,12 +30,7 @@
     joystickNubColor: "rgba(255, 255, 255, 0.9)",
     enableMobileKeyboardSupport: true,
     debugMode: true,
-    // NEW: Drag mode configuration
-    enableDragMode: false,
-    showDragHandles: true,
-    snapToGrid: false,
-    gridSize: 10,
-    // Layout configuration
+    // NEW: Layout configuration
     layoutConfig: {
       version: "1.0.0",
       name: "default",
@@ -44,11 +39,6 @@
         buttonOpacity: 0.7,
         defaultProfile: "quake3",
         debugMode: true,
-        // NEW: Drag mode settings
-        enableDragMode: false,
-        showDragHandles: true,
-        snapToGrid: false,
-        gridSize: 10,
       },
       layout: {
         type: "split",
@@ -97,8 +87,8 @@
             verticalAlign: "top",
             horizontalOffset: "30px",
             verticalOffset: "30px",
-            width: "150px",
-            height: "150px",
+            width: "120px",
+            height: "120px",
           },
           systemButtons: {
             position: "absolute",
@@ -144,11 +134,6 @@
           width: "60px",
           height: "60px",
         },
-        dragButton: {
-          // NEW: Drag button size
-          width: "60px",
-          height: "60px",
-        },
         systemButtons: {
           width: "80px",
           height: "40px",
@@ -191,12 +176,6 @@
             border: "#ff66cc",
             text: "#ffffff",
           },
-          dragButton: {
-            // NEW: Drag button colors
-            background: "rgba(0, 0, 0, 0.8)",
-            border: "#ffff00",
-            text: "#ffff00",
-          },
           systemButtons: {
             background: "rgba(0, 0, 0, 0.7)",
             border: "#666666",
@@ -234,13 +213,6 @@
           warning: "#ffaa00",
           error: "#ff0000",
         },
-        dragMode: {
-          // NEW: Drag mode colors
-          border: "#ffff00",
-          handle: "#ffff00",
-          activeBorder: "#00ff00",
-          grid: "rgba(255, 255, 0, 0.1)",
-        },
       },
       behavior: {
         joystick: {
@@ -264,14 +236,6 @@
           enableMobileSupport: true,
           autoFocus: true,
         },
-        dragMode: {
-          // NEW: Drag mode behavior
-          showHandles: true,
-          snapToGrid: false,
-          gridSize: 10,
-          constrainToScreen: true,
-          autoSave: true,
-        },
       },
       visibility: {
         showCalibrationButton: true,
@@ -279,7 +243,6 @@
         showButtonLabels: true,
         showTouchFeedback: true,
         includeShoulderButtons: true,
-        showDragButton: true, // NEW: Show drag button
       },
       presets: {
         default: {
@@ -387,13 +350,6 @@
   let touchPoints = new Map();
   let doubleTapTimers = new Map();
 
-  // NEW: Drag mode state
-  let dragModeActive = false;
-  let draggableElements = new Map();
-  let activeDragElement = null;
-  let dragStartPosition = { x: 0, y: 0 };
-  let elementStartPosition = { top: 0, left: 0 };
-
   // DOM elements
   let enableButton = null;
   let overlay = null;
@@ -412,40 +368,15 @@
       style.position = layoutConfig.position;
     }
 
-    // NEW: Check if we have pixel positions saved (from drag mode)
-    if (
-      layoutConfig.pixelLeft !== undefined &&
-      layoutConfig.pixelTop !== undefined
-    ) {
-      // Use pixel positions if available (more precise for drag mode)
-      style.left = `${layoutConfig.pixelLeft}px`;
-      style.top = `${layoutConfig.pixelTop}px`;
-      style.right = "auto";
-      style.bottom = "auto";
+    // Apply coordinates
+    if (layoutConfig.top !== undefined) style.top = layoutConfig.top;
+    if (layoutConfig.left !== undefined) style.left = layoutConfig.left;
+    if (layoutConfig.right !== undefined) style.right = layoutConfig.right;
+    if (layoutConfig.bottom !== undefined) style.bottom = layoutConfig.bottom;
 
-      // Use pixel dimensions if available
-      if (layoutConfig.pixelWidth !== undefined) {
-        style.width = `${layoutConfig.pixelWidth}px`;
-      } else if (layoutConfig.width !== undefined) {
-        style.width = layoutConfig.width;
-      }
-
-      if (layoutConfig.pixelHeight !== undefined) {
-        style.height = `${layoutConfig.pixelHeight}px`;
-      } else if (layoutConfig.height !== undefined) {
-        style.height = layoutConfig.height;
-      }
-    } else {
-      // Fall back to percentage/string coordinates
-      if (layoutConfig.top !== undefined) style.top = layoutConfig.top;
-      if (layoutConfig.left !== undefined) style.left = layoutConfig.left;
-      if (layoutConfig.right !== undefined) style.right = layoutConfig.right;
-      if (layoutConfig.bottom !== undefined) style.bottom = layoutConfig.bottom;
-
-      // Apply size
-      if (layoutConfig.width !== undefined) style.width = layoutConfig.width;
-      if (layoutConfig.height !== undefined) style.height = layoutConfig.height;
-    }
+    // Apply size
+    if (layoutConfig.width !== undefined) style.width = layoutConfig.width;
+    if (layoutConfig.height !== undefined) style.height = layoutConfig.height;
 
     // Apply transforms
     if (layoutConfig.transform !== undefined)
@@ -616,7 +547,7 @@
         left: layout.leftShoulder.horizontalOffset,
         top:
           layout.leftShoulder.verticalAlign === "center"
-            ? `${layout.leftShoulder.verticalOffset}`
+            ? `calc(50% ${layout.leftShoulder.verticalOffset})`
             : undefined,
         gap: layout.leftShoulder.buttonSpacing,
       });
@@ -629,7 +560,7 @@
         right: layout.rightShoulder.horizontalOffset,
         top:
           layout.rightShoulder.verticalAlign === "center"
-            ? `${layout.rightShoulder.verticalOffset}`
+            ? `calc(50% ${layout.rightShoulder.verticalOffset})`
             : undefined,
         gap: layout.rightShoulder.buttonSpacing,
       });
@@ -803,17 +734,6 @@
       delta: delta,
       timestamp: Date.now(),
       activeButtons: Array.from(mouseButtons),
-    });
-  }
-
-  function logDragEvent(elementType, action, position = null) {
-    logDebug(`Drag ${action.toUpperCase()}`, {
-      element: elementType,
-      action: action,
-      position: position,
-      dragModeActive: dragModeActive,
-      snapToGrid: config.snapToGrid,
-      timestamp: Date.now(),
     });
   }
 
@@ -1497,28 +1417,23 @@
     const wrapper = document.createElement("div");
     wrapper.id = "virtualgamepad-top-buttons";
 
-    // Check if we have many buttons and adjust layout
-    const buttonCount = 5; // enable + calibration + qr + keyboard + drag
-
     wrapper.style.cssText = `
         position: fixed;
         top: 20px;
         left: 50%;
         transform: translateX(-50%);
         display: flex;
-        gap: ${buttonCount > 4 ? "10px" : "15px"};
+        gap: 15px;
         align-items: center;
         justify-content: center;
         z-index: ${config.zIndex};
         pointer-events: auto;
         background: transparent;
         padding: 0;
-        flex-wrap: wrap;
-        max-width: 90%;
     `;
 
     document.body.appendChild(wrapper);
-    logDebug("Top buttons wrapper created with drag button support");
+    logDebug("Top buttons wrapper created");
     return wrapper;
   }
 
@@ -2186,788 +2101,6 @@
     return calButton;
   }
 
-  // ================ CREATE DRAG BUTTON ================
-
-  function createDragButton(wrapper) {
-    const dragButton = document.createElement("button");
-    dragButton.innerHTML = "✥"; // Drag icon
-    dragButton.title = "Toggle Drag/Reposition Mode";
-    dragButton.id = "virtualgamepad-drag-button";
-
-    // Apply layout config if available
-    const layoutConfig = config.layoutConfig;
-    const buttonSize =
-      layoutConfig && layoutConfig.sizes && layoutConfig.sizes.dragButton
-        ? layoutConfig.sizes.dragButton
-        : { width: "60px", height: "60px" };
-
-    // SAFER: Check if colors exists and has buttons and dragButton
-    let buttonColors = {
-      background: "rgba(0, 0, 0, 0.8)",
-      border: "#ffff00",
-      text: "#ffff00",
-    };
-
-    if (
-      layoutConfig &&
-      layoutConfig.colors &&
-      layoutConfig.colors.buttons &&
-      layoutConfig.colors.buttons.dragButton
-    ) {
-      buttonColors = layoutConfig.colors.buttons.dragButton;
-    }
-    console.log(buttonColors);
-    dragButton.style.cssText = `
-      width: ${buttonSize.width};
-      height: ${buttonSize.height};
-      background: ${buttonColors.background};
-      color: ${buttonColors.text};
-      border: 2px solid ${buttonColors.border};
-      border-radius: 5px;
-      font-size: 24px;
-      cursor: pointer;
-      opacity: 0.9;
-      transition: all 0.3s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: ${config.zIndex + 10};
-    `;
-
-    dragButton.addEventListener("click", toggleDragMode);
-    dragButton.addEventListener("touchstart", (e) => {
-      e.preventDefault();
-      toggleDragMode();
-    });
-
-    wrapper.appendChild(dragButton);
-    logDebug("Drag button created");
-    return dragButton;
-  }
-
-  // ================ DRAG & REPOSITION MODE ================
-
-  function toggleDragMode() {
-    dragModeActive = !dragModeActive;
-
-    const dragButton = document.getElementById("virtualgamepad-drag-button");
-    if (dragButton) {
-      if (dragModeActive) {
-        dragButton.innerHTML = "✓";
-        dragButton.title = "Exit Drag Mode (Save Layout)";
-        dragButton.style.background = "rgba(0, 170, 0, 0.8)";
-        dragButton.style.borderColor = "#00ff00";
-        dragButton.style.color = "#ffffff";
-        enableDragMode();
-      } else {
-        dragButton.innerHTML = "✥";
-        dragButton.title = "Toggle Drag/Reposition Mode";
-        dragButton.style.background = "rgba(0, 0, 0, 0.8)";
-        dragButton.style.borderColor = "#ffff00";
-        dragButton.style.color = "#ffff00";
-        disableDragMode();
-        saveCurrentLayout();
-      }
-    }
-
-    logDebug("Drag mode toggled", { active: dragModeActive });
-  }
-
-  function enableDragMode() {
-    if (!overlay) return;
-
-    // Make all control elements draggable
-    const draggableSelectors = [
-      ".joystick-left",
-      ".joystick-right",
-      ".face-buttons",
-      ".dpad-container",
-      ".system-buttons",
-      ".shoulder-buttons-left",
-      ".shoulder-buttons-right",
-    ];
-
-    draggableElements.clear();
-
-    draggableSelectors.forEach((selector) => {
-      const elements = overlay.querySelectorAll(selector);
-      elements.forEach((element) => {
-        makeElementDraggable(element);
-        draggableElements.set(element, {
-          originalPosition: {
-            top: element.style.top,
-            left: element.style.left,
-            right: element.style.right,
-            bottom: element.style.bottom,
-          },
-        });
-      });
-    });
-
-    // Show drag handles if enabled
-    if (config.showDragHandles) {
-      showDragHandles();
-    }
-
-    // Show grid if snapping enabled
-    if (config.snapToGrid) {
-      showGridOverlay();
-    }
-
-    // Show instructions
-    showDragModeInstructions();
-
-    logDebug("Drag mode enabled", {
-      draggableElements: draggableElements.size,
-      snapToGrid: config.snapToGrid,
-      showHandles: config.showDragHandles,
-    });
-  }
-
-  function disableDragMode() {
-    // Remove all drag-related event listeners
-    draggableElements.forEach((data, element) => {
-      element.removeEventListener("mousedown", element._dragStartHandler);
-      element.removeEventListener("touchstart", element._touchDragStartHandler);
-      delete element._dragStartHandler;
-      delete element._touchDragStartHandler;
-    });
-
-    // Remove drag handles
-    removeDragHandles();
-
-    // Remove grid overlay
-    removeGridOverlay();
-
-    // Remove instructions
-    removeDragModeInstructions();
-
-    // Reset active drag element
-    activeDragElement = null;
-
-    logDebug("Drag mode disabled");
-  }
-
-  function makeElementDraggable(element) {
-    // Store original pointer-events
-    const originalPointerEvents = element.style.pointerEvents;
-    element.style.pointerEvents = "auto";
-
-    // Add visual feedback for draggable state
-    element.style.cursor = "move";
-    element.style.boxShadow = dragModeActive ? "0 0 0 2px #ffff00" : "";
-    element.style.transition = "box-shadow 0.3s";
-
-    // Mouse drag handlers
-    const dragStartHandler = (e) => {
-      if (!dragModeActive) return;
-
-      e.preventDefault();
-      e.stopPropagation();
-
-      activeDragElement = element;
-      dragStartPosition = { x: e.clientX, y: e.clientY };
-
-      const style = window.getComputedStyle(element);
-      elementStartPosition = {
-        top: parseInt(style.top) || 0,
-        left: parseInt(style.left) || 0,
-        right: parseInt(style.right) || 0,
-        bottom: parseInt(style.bottom) || 0,
-      };
-
-      // Highlight the element being dragged
-      element.style.boxShadow = "0 0 0 3px #00ff00";
-      element.style.zIndex = (config.zIndex + 100).toString();
-
-      // Add move and end listeners
-      const dragMoveHandler = (e) => {
-        if (!activeDragElement) return;
-
-        const deltaX = e.clientX - dragStartPosition.x;
-        const deltaY = e.clientY - dragStartPosition.y;
-
-        let newLeft = elementStartPosition.left + deltaX;
-        let newTop = elementStartPosition.top + deltaY;
-
-        // Apply grid snapping
-        if (config.snapToGrid) {
-          newLeft = Math.round(newLeft / config.gridSize) * config.gridSize;
-          newTop = Math.round(newTop / config.gridSize) * config.gridSize;
-        }
-
-        // Constrain to screen bounds
-        const rect = element.getBoundingClientRect();
-        const screenWidth = window.innerWidth;
-        const screenHeight = window.innerHeight;
-
-        if (newLeft < 0) newLeft = 0;
-        if (newTop < 0) newTop = 0;
-        if (newLeft + rect.width > screenWidth)
-          newLeft = screenWidth - rect.width;
-        if (newTop + rect.height > screenHeight)
-          newTop = screenHeight - rect.height;
-
-        element.style.left = `${newLeft}px`;
-        element.style.top = `${newTop}px`;
-        element.style.right = "auto";
-        element.style.bottom = "auto";
-      };
-
-      const dragEndHandler = () => {
-        if (!activeDragElement) return;
-
-        // Reset visual feedback
-        element.style.boxShadow = dragModeActive ? "0 0 0 2px #ffff00" : "";
-        element.style.zIndex = (config.zIndex + 1).toString();
-
-        // Update layout config with new position
-        updateLayoutConfigFromPosition(element);
-
-        activeDragElement = null;
-
-        // Remove temporary listeners
-        document.removeEventListener("mousemove", dragMoveHandler);
-        document.removeEventListener("mouseup", dragEndHandler);
-      };
-
-      document.addEventListener("mousemove", dragMoveHandler);
-      document.addEventListener("mouseup", dragEndHandler);
-    };
-
-    // Touch drag handlers
-    const touchDragStartHandler = (e) => {
-      if (!dragModeActive) return;
-
-      e.preventDefault();
-      e.stopPropagation();
-
-      if (e.touches.length !== 1) return;
-
-      const touch = e.touches[0];
-      activeDragElement = element;
-      dragStartPosition = { x: touch.clientX, y: touch.clientY };
-
-      const style = window.getComputedStyle(element);
-      elementStartPosition = {
-        top: parseInt(style.top) || 0,
-        left: parseInt(style.left) || 0,
-        right: parseInt(style.right) || 0,
-        bottom: parseInt(style.bottom) || 0,
-      };
-
-      // Highlight the element being dragged
-      element.style.boxShadow = "0 0 0 3px #00ff00";
-      element.style.zIndex = (config.zIndex + 100).toString();
-
-      // Add touch move and end listeners
-      const touchDragMoveHandler = (e) => {
-        if (!activeDragElement || e.touches.length !== 1) return;
-
-        const touch = e.touches[0];
-        const deltaX = touch.clientX - dragStartPosition.x;
-        const deltaY = touch.clientY - dragStartPosition.y;
-
-        let newLeft = elementStartPosition.left + deltaX;
-        let newTop = elementStartPosition.top + deltaY;
-
-        // Apply grid snapping
-        if (config.snapToGrid) {
-          newLeft = Math.round(newLeft / config.gridSize) * config.gridSize;
-          newTop = Math.round(newTop / config.gridSize) * config.gridSize;
-        }
-
-        // Constrain to screen bounds
-        const rect = element.getBoundingClientRect();
-        const screenWidth = window.innerWidth;
-        const screenHeight = window.innerHeight;
-
-        if (newLeft < 0) newLeft = 0;
-        if (newTop < 0) newTop = 0;
-        if (newLeft + rect.width > screenWidth)
-          newLeft = screenWidth - rect.width;
-        if (newTop + rect.height > screenHeight)
-          newTop = screenHeight - rect.height;
-
-        element.style.left = `${newLeft}px`;
-        element.style.top = `${newTop}px`;
-        element.style.right = "auto";
-        element.style.bottom = "auto";
-      };
-
-      const touchDragEndHandler = () => {
-        if (!activeDragElement) return;
-
-        // Reset visual feedback
-        element.style.boxShadow = dragModeActive ? "0 0 0 2px #ffff00" : "";
-        element.style.zIndex = (config.zIndex + 1).toString();
-
-        // Update layout config with new position
-        updateLayoutConfigFromPosition(element);
-
-        activeDragElement = null;
-
-        // Remove temporary listeners
-        document.removeEventListener("touchmove", touchDragMoveHandler);
-        document.removeEventListener("touchend", touchDragEndHandler);
-        document.removeEventListener("touchcancel", touchDragEndHandler);
-      };
-
-      document.addEventListener("touchmove", touchDragMoveHandler, {
-        passive: false,
-      });
-      document.addEventListener("touchend", touchDragEndHandler);
-      document.addEventListener("touchcancel", touchDragEndHandler);
-    };
-
-    // Store handlers for cleanup
-    element._dragStartHandler = dragStartHandler;
-    element._touchDragStartHandler = touchDragStartHandler;
-
-    // Add event listeners
-    element.addEventListener("mousedown", dragStartHandler);
-    element.addEventListener("touchstart", touchDragStartHandler, {
-      passive: false,
-    });
-
-    // Prevent default touch actions
-    element.addEventListener(
-      "touchmove",
-      (e) => {
-        if (dragModeActive) e.preventDefault();
-      },
-      { passive: false }
-    );
-
-    logDebug(`Made element draggable: ${element.className}`);
-  }
-
-  function updateLayoutConfigFromPosition(element) {
-    if (
-      !config.layoutConfig ||
-      !config.layoutConfig.layout ||
-      !config.layoutConfig.layout.positions
-    )
-      return;
-
-    const rect = element.getBoundingClientRect();
-    const screenWidth = window.innerWidth;
-    const screenHeight = window.innerHeight;
-
-    // Convert absolute pixels to relative positions for layout config
-    const relativeLeft = ((rect.left / screenWidth) * 100).toFixed(2);
-    const relativeTop = ((rect.top / screenHeight) * 100).toFixed(2);
-    const relativeWidth = ((rect.width / screenWidth) * 100).toFixed(2);
-    const relativeHeight = ((rect.height / screenHeight) * 100).toFixed(2);
-
-    // Determine which element type this is and update config
-    let elementType = null;
-    if (element.classList.contains("joystick-left"))
-      elementType = "leftJoystick";
-    else if (element.classList.contains("joystick-right"))
-      elementType = "rightJoystick";
-    else if (element.classList.contains("face-buttons"))
-      elementType = "faceButtons";
-    else if (element.classList.contains("dpad-container")) elementType = "dpad";
-    else if (element.classList.contains("system-buttons"))
-      elementType = "systemButtons";
-    else if (element.classList.contains("shoulder-buttons-left"))
-      elementType = "leftShoulder";
-    else if (element.classList.contains("shoulder-buttons-right"))
-      elementType = "rightShoulder";
-
-    if (elementType && config.layoutConfig.layout.positions[elementType]) {
-      config.layoutConfig.layout.positions[
-        elementType
-      ].horizontalOffset = `${relativeLeft}%`;
-      config.layoutConfig.layout.positions[
-        elementType
-      ].verticalOffset = `${relativeTop}%`;
-
-      // DON'T override width/height with percentages - keep original units
-      // Only update width/height if they weren't originally in pixels
-      const currentConfig = config.layoutConfig.layout.positions[elementType];
-
-      // Check if current width/height are pixel values
-      const hasPixelWidth =
-        currentConfig.width && currentConfig.width.includes("px");
-      const hasPixelHeight =
-        currentConfig.height && currentConfig.height.includes("px");
-
-      // If not already in pixels, update with percentages
-      if (!hasPixelWidth) {
-        config.layoutConfig.layout.positions[
-          elementType
-        ].width = `${relativeWidth}%`;
-      }
-      if (!hasPixelHeight) {
-        config.layoutConfig.layout.positions[
-          elementType
-        ].height = `${relativeHeight}%`;
-      }
-
-      // Set position type to absolute since we're using pixel positioning
-      config.layoutConfig.layout.positions[elementType].position = "absolute";
-      config.layoutConfig.layout.positions[elementType].side = "custom";
-      config.layoutConfig.layout.positions[elementType].verticalAlign =
-        "custom";
-
-      // Always save pixel positions for immediate restoration
-      config.layoutConfig.layout.positions[elementType].pixelLeft = rect.left;
-      config.layoutConfig.layout.positions[elementType].pixelTop = rect.top;
-      config.layoutConfig.layout.positions[elementType].pixelWidth = rect.width;
-      config.layoutConfig.layout.positions[elementType].pixelHeight =
-        rect.height;
-
-      logDebug(`Updated layout config for ${elementType}`, {
-        left: relativeLeft + "%",
-        top: relativeTop + "%",
-        width: config.layoutConfig.layout.positions[elementType].width,
-        height: config.layoutConfig.layout.positions[elementType].height,
-        pixelLeft: rect.left,
-        pixelTop: rect.top,
-      });
-    }
-  }
-
-  function showDragHandles() {
-    draggableElements.forEach((data, element) => {
-      // Create drag handle
-      const dragHandle = document.createElement("div");
-      dragHandle.className = "drag-handle";
-      dragHandle.innerHTML = "⣿"; // Unicode character for handle
-      dragHandle.title = "Drag to reposition";
-
-      dragHandle.style.cssText = `
-        position: absolute;
-        top: -15px;
-        right: -15px;
-        width: 30px;
-        height: 30px;
-        background: rgba(255, 255, 0, 0.9);
-        border: 2px solid #000;
-        border-radius: 50%;
-        color: #000;
-        font-size: 16px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: move;
-        z-index: ${config.zIndex + 20};
-        user-select: none;
-        touch-action: none;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-      `;
-
-      // Add same drag handlers to handle
-      dragHandle.addEventListener("mousedown", element._dragStartHandler);
-      dragHandle.addEventListener(
-        "touchstart",
-        element._touchDragStartHandler,
-        { passive: false }
-      );
-
-      element.appendChild(dragHandle);
-      element._dragHandle = dragHandle;
-    });
-  }
-
-  function removeDragHandles() {
-    draggableElements.forEach((data, element) => {
-      if (element._dragHandle && element._dragHandle.parentNode) {
-        element._dragHandle.removeEventListener(
-          "mousedown",
-          element._dragStartHandler
-        );
-        element._dragHandle.removeEventListener(
-          "touchstart",
-          element._touchDragStartHandler
-        );
-        element._dragHandle.remove();
-        delete element._dragHandle;
-      }
-    });
-  }
-
-  function showGridOverlay() {
-    if (document.getElementById("drag-grid-overlay")) return;
-
-    const gridOverlay = document.createElement("div");
-    gridOverlay.id = "drag-grid-overlay";
-    gridOverlay.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      z-index: ${config.zIndex + 5};
-      background-image: 
-        linear-gradient(rgba(255, 255, 0, 0.1) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255, 255, 0, 0.1) 1px, transparent 1px);
-      background-size: ${config.gridSize}px ${config.gridSize}px;
-      opacity: 0.5;
-    `;
-
-    document.body.appendChild(gridOverlay);
-  }
-
-  function removeGridOverlay() {
-    const gridOverlay = document.getElementById("drag-grid-overlay");
-    if (gridOverlay && gridOverlay.parentNode) {
-      gridOverlay.parentNode.removeChild(gridOverlay);
-    }
-  }
-
-  function showDragModeInstructions() {
-    // Remove existing instructions if any
-    removeDragModeInstructions();
-
-    const instructions = document.createElement("div");
-    instructions.id = "drag-mode-instructions";
-    instructions.style.cssText = `
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: rgba(0, 0, 0, 0.95);
-    border: 3px solid #ffff00;
-    border-radius: 15px;
-    padding: 25px;
-    z-index: ${config.zIndex + 1000};
-    color: white;
-    font-family: Arial, sans-serif;
-    max-width: 90%;
-    min-width: 300px;
-    text-align: center;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-    animation: fadeIn 0.5s;
-  `;
-
-    instructions.innerHTML = `
-    <h2 style="margin-top: 0; color: #ffff00; margin-bottom: 20px;">
-      🎮 Drag & Reposition Mode
-    </h2>
-    
-    <div style="text-align: left; margin-bottom: 25px;">
-      <p style="margin: 10px 0; color: #aaa;">
-        <span style="color: #ffff00; font-weight: bold;">• Drag any control</span> to reposition it
-      </p>
-      <p style="margin: 10px 0; color: #aaa;">
-        <span style="color: #ffff00; font-weight: bold;">• Use handles</span> (yellow circles) for easier dragging
-      </p>
-      <p style="margin: 10px 0; color: #aaa;">
-        <span style="color: #ffff00; font-weight: bold;">• Grid snapping:</span> ${
-          config.snapToGrid ? "ON" : "OFF"
-        }
-      </p>
-      <p style="margin: 10px 0; color: #aaa;">
-        <span style="color: #ffff00; font-weight: bold;">• Auto-save:</span> Layout saves automatically on exit
-      </p>
-    </div>
-    
-    <div style="margin-top: 20px; padding: 15px; background: rgba(255, 255, 0, 0.1); border-radius: 10px;">
-      <p style="color: #ffff00; font-size: 14px; margin: 0;">
-        Tip: Arrange controls for optimal reach based on your hand size
-      </p>
-    </div>
-    
-    <div style="margin-top: 25px;">
-      <button id="toggle-grid-btn" style="
-        padding: 10px 20px;
-        margin: 0 5px;
-        background: ${config.snapToGrid ? "#00aa00" : "#555"};
-        color: white;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        font-size: 14px;
-      ">
-        ${config.snapToGrid ? "✓ Grid ON" : "Grid OFF"}
-      </button>
-      
-      <button id="reset-positions-btn" style="
-        padding: 10px 20px;
-        margin: 0 5px;
-        background: #aa0000;
-        color: white;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        font-size: 14px;
-      ">
-        Reset Positions
-      </button>
-      
-      <!-- NEW: Delete Layout Button -->
-      <button id="delete-layout-btn" style="
-        padding: 10px 20px;
-        margin: 0 5px;
-        background: #ff3300;
-        color: white;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        font-size: 14px;
-      ">
-        Delete Saved Layout
-      </button>
-      
-      <button id="close-instructions-btn" style="
-        padding: 10px 20px;
-        margin: 0 5px;
-        background: #555;
-        color: white;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        font-size: 14px;
-      ">
-        Continue
-      </button>
-    </div>
-  `;
-
-    // Add fadeIn animation
-    const style = document.createElement("style");
-    style.textContent = `
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translate(-50%, -60%); }
-      to { opacity: 1; transform: translate(-50%, -50%); }
-    }
-  `;
-    document.head.appendChild(style);
-
-    document.body.appendChild(instructions);
-
-    // Add event listeners
-    instructions
-      .querySelector("#toggle-grid-btn")
-      .addEventListener("click", () => {
-        config.snapToGrid = !config.snapToGrid;
-
-        // Update button appearance
-        const gridBtn = instructions.querySelector("#toggle-grid-btn");
-        gridBtn.style.background = config.snapToGrid ? "#00aa00" : "#555";
-        gridBtn.textContent = config.snapToGrid ? "✓ Grid ON" : "Grid OFF";
-
-        // Show/hide grid overlay
-        if (config.snapToGrid) {
-          showGridOverlay();
-        } else {
-          removeGridOverlay();
-        }
-
-        logDebug("Grid snapping toggled", { snapToGrid: config.snapToGrid });
-      });
-
-    instructions
-      .querySelector("#reset-positions-btn")
-      .addEventListener("click", () => {
-        if (confirm("Reset all positions to default layout?")) {
-          resetPositionsToDefault();
-          removeDragModeInstructions();
-          showDragModeInstructions(); // Refresh instructions
-        }
-      });
-
-    // NEW: Delete layout button listener
-    instructions
-      .querySelector("#delete-layout-btn")
-      .addEventListener("click", () => {
-        if (confirm("Delete saved layout from browser storage?")) {
-          deleteSavedLayout();
-          removeDragModeInstructions();
-        }
-      });
-
-    instructions
-      .querySelector("#close-instructions-btn")
-      .addEventListener("click", () => {
-        removeDragModeInstructions();
-      });
-
-    // Auto-close after 10 seconds
-    setTimeout(() => {
-      if (document.getElementById("drag-mode-instructions")) {
-        removeDragModeInstructions();
-      }
-    }, 10000);
-  }
-
-  function removeDragModeInstructions() {
-    const instructions = document.getElementById("drag-mode-instructions");
-    if (instructions && instructions.parentNode) {
-      instructions.parentNode.removeChild(instructions);
-    }
-  }
-
-  function resetPositionsToDefault() {
-    // Reset all elements to their default positions
-    draggableElements.forEach((data, element) => {
-      const original = data.originalPosition;
-
-      element.style.top = original.top || "";
-      element.style.left = original.left || "";
-      element.style.right = original.right || "";
-      element.style.bottom = original.bottom || "";
-
-      // Update layout config with default positions
-      updateLayoutConfigFromPosition(element);
-    });
-
-    logDebug("Positions reset to default");
-  }
-
-  function saveCurrentLayout() {
-    // Update all positions in config
-    draggableElements.forEach((data, element) => {
-      updateLayoutConfigFromPosition(element);
-    });
-
-    // Save to localStorage
-    if (config.saveToLocalStorage) {
-      localStorage.setItem(
-        "virtualgamepad_layout",
-        JSON.stringify(config.layoutConfig)
-      );
-
-      // Show saved notification
-      const notification = document.createElement("div");
-      notification.textContent = "✅ Layout saved!";
-      notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: #00aa00;
-        color: white;
-        padding: 10px 20px;
-        border-radius: 5px;
-        z-index: ${config.zIndex + 1000};
-        animation: fadeOut 2s forwards;
-        font-family: Arial, sans-serif;
-      `;
-
-      const style = document.createElement("style");
-      style.textContent = `
-        @keyframes fadeOut {
-          0% { opacity: 1; }
-          70% { opacity: 1; }
-          100% { opacity: 0; }
-        }
-      `;
-      document.head.appendChild(style);
-
-      document.body.appendChild(notification);
-      setTimeout(() => notification.remove(), 2000);
-    }
-
-    logDebug("Current layout saved", {
-      elements: draggableElements.size,
-      config: config.layoutConfig,
-    });
-  }
-
   // ================ SHOULDER BUTTONS (L1/L2, R1/R2) ================
 
   function createLeftShoulderButtons() {
@@ -3592,21 +2725,6 @@
 
     // Apply layout config
     const layoutConfig = config.layoutConfig;
-    // Fix the width/height assignment with proper null checking
-    const leftJoystickConfig = layoutConfig?.layout?.positions?.leftJoystick;
-    const rightJoystickConfig = layoutConfig?.layout?.positions?.rightJoystick;
-
-    const width =
-      side === "left"
-        ? leftJoystickConfig?.width || "150px"
-        : rightJoystickConfig?.width || "150px";
-
-    const height =
-      side === "left"
-        ? leftJoystickConfig?.height || "150px"
-        : rightJoystickConfig?.height || "150px";
-    console.log(width);
-
     const joystickColors =
       layoutConfig && layoutConfig.colors && layoutConfig.colors.joysticks
         ? layoutConfig.colors.joysticks
@@ -3622,8 +2740,8 @@
     joystick.innerHTML = `
         <style>
             .joystick-container {
-                width: ${width};
-                height:${height};
+                width: 100%;
+                height: 100%;
                 position: relative;
                 touch-action: none;
                 user-select: none;
@@ -5999,9 +5117,6 @@
     createQrButton(topButtonsWrapper);
     createKeyboardButton(topButtonsWrapper);
 
-    // NEW: Add drag button
-    createDragButton(topButtonsWrapper);
-
     // Create touch-to-mouse trackpad (but don't enable it yet)
     window.touchTrackpad = createTouchToMouseTrackpad(config.zIndex);
 
@@ -6044,7 +5159,6 @@
       layoutConfig: config.layoutConfig.layout.type,
       buttonCount: Object.keys(currentProfile.mappings).length,
       ready: true,
-      dragModeAvailable: true,
     });
 
     console.log(
@@ -6053,52 +5167,7 @@
     console.log(
       "📝 Debug logging is ENABLED - check console for input events."
     );
-    console.log("✥ Click the drag button to reposition controls!");
   }
-
-  // Add this function to your VirtualGamepad API
-  function deleteSavedLayout() {
-    if (confirm("Delete saved layout and restore defaults?")) {
-      // Clear from localStorage
-      localStorage.removeItem("virtualgamepad_layout");
-
-      // Reset config to defaults
-      config.layoutConfig = { ...DEFAULT_CONFIG.layoutConfig };
-
-      // Refresh the overlay
-      if (overlay) {
-        overlay.remove();
-        overlay = null;
-        if (isEnabled) {
-          createTouchControls(config.zIndex + 1);
-        }
-      }
-
-      // Show confirmation
-      const notification = document.createElement("div");
-      notification.textContent = "✅ Layout deleted!";
-      notification.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background: #ff6600;
-      color: white;
-      padding: 10px 20px;
-      border-radius: 5px;
-      z-index: ${config.zIndex + 1000};
-      animation: fadeOut 2s forwards;
-      font-family: Arial, sans-serif;
-    `;
-
-      document.body.appendChild(notification);
-      setTimeout(() => notification.remove(), 2000);
-
-      logDebug("Saved layout deleted");
-    }
-  }
-
-  // Add to your VirtualGamepad API
-  window.VirtualGamepad.deleteSavedLayout = deleteSavedLayout;
 
   // ================ EXPORT PUBLIC API ================
 
@@ -6156,7 +5225,7 @@
       console.log("==============================");
     },
 
-    // Layout Configuration Management
+    // NEW: Layout Configuration Management
     getLayoutConfig: () => ({ ...config.layoutConfig }),
 
     setLayoutConfig: (layoutConfig) => {
@@ -6395,102 +5464,59 @@
       }
       logDebug("Layout reset to defaults");
     },
-
-    // NEW: Drag Mode API
-    enableDragMode: () => {
-      if (!dragModeActive) {
-        const dragButton = document.getElementById(
-          "virtualgamepad-drag-button"
-        );
-        if (dragButton) {
-          dragButton.click();
-        }
-      }
-    },
-
-    disableDragMode: () => {
-      if (dragModeActive) {
-        const dragButton = document.getElementById(
-          "virtualgamepad-drag-button"
-        );
-        if (dragButton) {
-          dragButton.click();
-        }
-      }
-    },
-
-    toggleDragMode: () => {
-      const dragButton = document.getElementById("virtualgamepad-drag-button");
-      if (dragButton) {
-        dragButton.click();
-      }
-    },
-
-    isDragModeActive: () => dragModeActive,
-
-    getDragConfig: () => ({
-      enableDragMode: config.enableDragMode,
-      showDragHandles: config.showDragHandles,
-      snapToGrid: config.snapToGrid,
-      gridSize: config.gridSize,
-    }),
-
-    setDragConfig: (dragConfig) => {
-      config.enableDragMode =
-        dragConfig.enableDragMode !== undefined
-          ? dragConfig.enableDragMode
-          : config.enableDragMode;
-      config.showDragHandles =
-        dragConfig.showDragHandles !== undefined
-          ? dragConfig.showDragHandles
-          : config.showDragHandles;
-      config.snapToGrid =
-        dragConfig.snapToGrid !== undefined
-          ? dragConfig.snapToGrid
-          : config.snapToGrid;
-      config.gridSize = dragConfig.gridSize || config.gridSize;
-
-      logDebug("Drag config updated", dragConfig);
-    },
-
-    saveCurrentPositions: saveCurrentLayout,
-
-    resetToDefaultPositions: resetPositionsToDefault,
   };
 
   //////////////////VIRTUALGAMEPAD.JS////////////////////////
 })();
 
-// Key Features Added:
-//     Drag Button - New yellow ✥ button added to the top controls
-//     Drag Mode Toggle - Click the drag button to enter/exit drag mode
-//     Visual Feedback - Yellow borders on draggable elements, green when dragging
-//     Drag Handles - Yellow circles for easier dragging (toggleable)
-//     Grid Snapping - Snap elements to grid for precise alignment (toggleable)
-//     Screen Boundary Constraints - Elements won't drag off-screen
-//     Layout Auto-Save - Positions saved automatically when exiting drag mode
-//     Instruction Panel - Helpful guide when entering drag mode
-//     Grid Toggle - Turn grid snapping on/off from instructions
-//     Reset Positions - Reset all controls to default layout
-//     API Integration - Full programmatic control through VirtualGamepad API
+// Key Changes Made:
+//     Integrated Layout Configuration: Added layoutConfig object to the main config with sections for layout, sizes, colors, behavior, and visibility.
+//     Dynamic Styling: Modified all component creation functions to read from layoutConfig instead of hardcoded values.
+//     Layout Application Function: Added updateControlPositions() and applyLayoutStyles() functions to dynamically apply layout configurations.
+//     Config Management API: Extended the VirtualGamepad API with new methods:
+//         getLayoutConfig() / setLayoutConfig()
+//         saveLayoutConfig() / loadLayoutConfig()
+//         exportLayoutConfig() / importLayoutConfig()
+//         getCurrentLayout() - captures current DOM positions
+//         applyPreset() - applies predefined layouts
+//         resetLayout() - resets to defaults
 
-// Usage:
-// // Programmatic control
-// VirtualGamepad.enableDragMode();
-// VirtualGamepad.disableDragMode();
-// VirtualGamepad.toggleDragMode();
+//     Preset Support: Added default presets (default, compact, left-handed) for quick layout switching.
+//     Persistent Storage: Layout configurations are saved to localStorage alongside other settings.
+//     Backward Compatibility: All existing functionality remains intact - the new system extends rather than replaces.
 
-// // Configure drag behavior
-// VirtualGamepad.setDragConfig({
-//   showDragHandles: true,
-//   snapToGrid: true,
-//   gridSize: 20
+// Usage Examples:
+
+// // Get current layout config
+// const layout = VirtualGamepad.getLayoutConfig();
+
+// // Modify and apply new layout
+// VirtualGamepad.setLayoutConfig({
+//   layout: {
+//     positions: {
+//       leftJoystick: { horizontalOffset: "40px", verticalOffset: "40px", width: "160px" },
+//       faceButtons: { horizontalOffset: "40px", verticalOffset: "40px", width: "160px" }
+//     }
+//   },
+//   colors: {
+//     joysticks: {
+//       border: "rgba(255, 0, 0, 0.5)",
+//       nub: "rgba(255, 255, 0, 0.9)"
+//     }
+//   }
 // });
 
-// // Save positions manually
-// VirtualGamepad.saveCurrentPositions();
+// // Apply a preset
+// VirtualGamepad.applyPreset("compact");
 
-// // Reset to default layout
-// VirtualGamepad.resetToDefaultPositions();
+// // Save custom layout
+// VirtualGamepad.saveLayoutConfig("my-layout");
 
-// The integration maintains all existing functionality while adding full drag-and-drop repositioning capabilities. Users can now customize their gamepad layout visually!
+// // Export to JSON file
+// VirtualGamepad.exportLayoutConfig();
+
+// // Import from JSON
+// VirtualGamepad.importLayoutConfig(jsonConfig);
+
+// The modified code now provides full configuration management through JSON,
+// making it easy to customize, save, load, and share gamepad layouts.
