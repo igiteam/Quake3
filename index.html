@@ -356,7 +356,7 @@
     var pleaseWait = document.querySelector(".pleasewait")
 
     window.addEventListener("load", function () {
-      if (window.top == window.self) {
+      if (window.top == window.self || true) {
         pleaseWait.style.display = "none"
         container.style.display = "block"
 
