@@ -5371,6 +5371,7 @@
         z-index: ${zIndex};
         display: none;
         opacity: 1;
+        color: white;
         background-color: transparent;
         display: flex;
         align-content: center;
